@@ -1,0 +1,35 @@
+Package: sits.starfm
+Title: Use the StarFM Fusion Model on Landsat 8 Images
+Version: 0.0.0.9001
+Authors@R: 
+    person(given = "Alber",
+           family = "Sanchez",
+           role = c("aut", "cre"),
+           email = "alber.ipia@inpe.br")
+Description: Fill in the clouds of Landsat 8 images using the StarFM fusion model.
+License: file LICENSE
+Encoding: UTF-8
+LazyData: true
+Imports:
+    dplyr,
+    lubridate,
+    magrittr,
+    methods,
+    purrr,
+    raster,
+    sf,
+    stringr,
+    tidyr
+SystemRequirements:
+    gdalwarp,
+    gdal_calc.py,
+    StarFM.exe
+URL: http://github.com/albhasan/sits.starfm/
+Suggests: 
+    devtools,
+    knitr,
+    rmarkdown,
+    testthat
+VignetteBuilder: knitr
+RoxygenNote: 6.1.1
+Depends: R (>= 3.5)
