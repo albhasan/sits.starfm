@@ -16,7 +16,7 @@ call_os(command, args, stdout = "", stderr = "")
 \item{stderr}{A length-one character.}
 }
 \value{
-out_filename
+A character
 }
 \description{
 Call the operating system.

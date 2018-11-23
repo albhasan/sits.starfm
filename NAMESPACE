@@ -3,6 +3,8 @@
 export("%>%")
 export(build_brick_tibble)
 export(fill_clouds)
+export(gdal_merge)
+export(get_landsat_band)
 export(get_next_image)
 export(run_starFM)
 importFrom(magrittr,"%>%")

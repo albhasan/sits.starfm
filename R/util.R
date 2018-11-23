@@ -276,7 +276,7 @@ build_ts <- function(img_tb, prodes_year_start = "-08-01", image_step = 16) {
 #' @param args    A character. The command's parameters.
 #' @param stdout  A length-one character.
 #' @param stderr  A length-one character.
-#' @return out_filename
+#' @return A character
 call_os <- function(command, args, stdout = "", stderr = "") {
     system2(command = command, args = args, stdout = stdout, stderr = stderr)
 }
@@ -344,10 +344,27 @@ fill_clouds <- function(img, tmp_dir = NULL) {
             out_format = param[["out_format"]],
             creation_option = param[["creation_option"]])
 
+
+
+
+
+
+
+    # here ----
+    # NO STAR FM column
     # fill in the clouds using StarFM
     starfm_tb <- img %>% dplyr::pull(starfm) %>% dplyr::bind_rows() %>%
         dplyr::select(t0_fine, starfm) %>%
         dplyr::mutate(mask = img_mask, band = get_landsat_band(starfm))
+
+
+
+
+
+
+
+
+
     if (nrow(starfm_tb) < 1) {
         warning("No files found!")
         return(NA)
@@ -451,6 +468,7 @@ get_next_image <- function(brick_imgs, ref_row_number, cloud_threshold = 0.1) {
 #'
 #' @param path   A character. Path to a Landsat file.
 #' @return A character.
+#' @export
 get_landsat_band <- function(path) {
     if (length(path) == 1) {
         path %>% basename() %>%
@@ -670,9 +688,9 @@ max_hole <- function(x) {
 #' and its inputs, t1_fine, t1_coarse, and t0_coarse.
 #' @export
 run_starFM <- function(img0_f, img1_f, band, out_filename = NULL, tmp_dir = NULL) {
-
-    # here ----
-    # TODO: Is there are more than one NA in the sat_img, starFM results are overwritten
+    log4r::debug(logger, sprintf("Starting starfm for %s",
+                                 c(img0_f$sat_image, img1_f$sat_image, band,
+                                   out_filename, tmp_dir)))
 
     # NOTE: random suffix, unrelated to tmp_dir
     tmp_base_name <- basename(tempfile(pattern = paste0(band, "_"),
@@ -746,12 +764,14 @@ run_starFM <- function(img0_f, img1_f, band, out_filename = NULL, tmp_dir = NULL
     }
 
     # Old Landsat 8 images use 0 as NO_DATA
+    # TODO: wrap call to gdallocationinfo
     pix00 <- call_os(command = "gdallocationinfo",
                      args = c(t1_fine, "0", "0", "-valonly"), stdout = TRUE)
     if (as.numeric(pix00) != param[["srcnodata_l8"]])
         stop("Invalid no data value for Landsat 8 images!")
 
     # Uncertainty values. Taken from Gao:2017
+    # TODO: Move to data?
     uncertainty_landsat <- 50
     uncertainty_modis <- 50
     if (band %in% c("sr_band2", "sr_band3", "sr_band4")) {
@@ -802,7 +822,7 @@ run_starFM <- function(img0_f, img1_f, band, out_filename = NULL, tmp_dir = NULL
                              paste0(paste("starfm", img0_f$scene,
                                           prediction_date, tmp_base_name,
                                           sep = "_"), ".txt"))
-    if (is.null(out_filename))
+    if (is.null(out_filename) || is.na(out_filename))
         out_filename <- starfm_file %>% tools::file_path_sans_ext() %>%
         paste0(".bin")
     file_con <- file(starfm_file)
@@ -837,6 +857,10 @@ run_starFM <- function(img0_f, img1_f, band, out_filename = NULL, tmp_dir = NULL
     hdr_md %>% stringr::str_subset("coordinate system string") %>%
         write(file = paste0(out_filename, ".hdr"), append = TRUE)
 
+    log4r::debug(logger,
+                 sprintf("Finishing starfm for %s",
+                         c(img0_f$sat_image, img1_f$sat_image, band,
+                           out_filename, tmp_dir)))
     return(c(starfm = out_filename, t1_fine = t1_fine, t1_coarse = t1_coarse,
              t0_fine = t0_fine, t0_coarse = t0_coarse, sfm_conf = starfm_file))
 }

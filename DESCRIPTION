@@ -1,13 +1,13 @@
 Package: sits.starfm
 Title: Use the StarFM Fusion Model on Landsat 8 Images
-Version: 0.0.0.9001
+Version: 0.0.0.9003
 Authors@R: 
     person(given = "Alber",
            family = "Sanchez",
            role = c("aut", "cre"),
            email = "alber.ipia@inpe.br")
 Description: Fill in the clouds of Landsat 8 images using the StarFM fusion model.
-License: file LICENSE
+License: GPL-2 | file LICENSE
 Encoding: UTF-8
 LazyData: true
 Imports:
@@ -24,7 +24,6 @@ SystemRequirements:
     gdalwarp,
     gdal_calc.py,
     StarFM.exe
-URL: http://github.com/albhasan/sits.starfm/
 Suggests: 
     devtools,
     knitr,

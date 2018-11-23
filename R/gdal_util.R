@@ -1,6 +1,3 @@
-# TODO: Use instead https://CRAN.R-project.org/package=gdalUtils
-
-
 .validate_input_files <- function(input_files) {
     stopifnot(is.character(input_files))
     if (any(is.na(input_files))) {
@@ -70,7 +67,11 @@ gdal_calc <- function(input_files, out_filename = NULL, expression,
     if (quiet)
         params <- append(params, "--quiet")
 
-    call_os(command = "gdal_calc.py", args = params)
+    error <- call_os(command = "gdal_calc.py", args = params)
+    if (error) {
+        warning("Failed call to gdal_calc")
+        return(NA_character_)
+    }
     return(out_filename)
 }
 
@@ -96,122 +97,55 @@ gdal_calc <- function(input_files, out_filename = NULL, expression,
 #' @param init      A numeric.
 #' @param createonly A length-one logical. The default is FALSE.
 #' @return          A length-one character. out_filename.
+#' @export
 gdal_merge <- function(input_files, out_filename = NULL, of = NULL,
                        creation_option = NULL, ot = NULL, ps = NULL,
                        tap = FALSE, ul_lr = NULL, v = FALSE, separate = FALSE,
                        pct = FALSE, nodata_value = NULL, a_nodata = NULL,
                        init = NULL, createonly = FALSE){
-  params <- character()
-  if (!is.null(of))
-    params <- append(params, paste("-of", of))
-  if (!is.null(creation_option))
-    params <- append(params, paste("-co", creation_option))
-  if (!is.null(ot))
-    params <- append(params, paste("-ot", ot))
-  if (!is.null(ps))
-    params <- append(params, paste("-ps", paste(ps)))
-  if (tap)
-    params <- append(params, "-tap")
-  if (!is.null(ul_lr))
-    params <- append(params, paste("-ul_lr", paste(ul_lr)))
-  if (v)
-    params <- append(params, "-v")
-  if (separate)
-    params <- append(params, "-separate")
-  if (pct)
-    params <- append(params, "-pct")
-  if (!is.null(nodata_value))
-    params <- append(params, paste("-nodata_value", nodata_value))
-  if (!is.null(a_nodata))
-    params <- append(params, paste("-a_nodata", a_nodata))
-  if (!is.null(init))
-    params <- append(params, paste("-init", paste(init)))
-  if (createonly)
-    params <- append(params, "-createonly")
-  #
-  params <- append(params, input_files)
-  if (is.null(out_filename)) {
-    out_filename <- file.path(getwd(), "out.tif")
-  }
-  params <- append(paste("-o", out_filename), params)
-  call_os(command = "gdal_merge.py", args = params)
-  return(out_filename)
-}
-
-
-#' @title Moisac images
-#' @author Alber Sanchez, \email{alber.ipia@@inpe.br}
-#' @description R wrapper for gdal_merge.py
-#'
-#' @param input_files           A character. Paths to the image files.
-#' @param out_filename          A length-one character. The path to the
-#' destination file. The default is out.tif in the current working directory.
-#' @param out_format            A length-one character. The output format.
-#' @param creation_option       A character. Creation options for output file
-#' e.g. c('NAME1=VALUE1', 'NAME2=VALUE2')
-#' @param pixelsize_xy          A length-two integer. Pixel size to be used for
-#' the output file.
-#' @param target_aligned_pixels A logical. Align the coordinates of the extent
-#' of the output file. The default is FALSE.
-#' @param extent_output         A length-four numeric. The extents of the output
-#' file.
-#' @param verbose               A length-one logical. Generate a verbose output.
-#' The default is FALSE.
-#' @param separate              A length-one logical. Place each input file into
-#' a separate band. The default is FALSE.
-#' @param color_table           A length-one logical. Grab a pseudo-color table
-#' from the first input image, and use it for the output.
-#' @param nodata_value          A length-one numeric. Ignore pixels from files
-#' being merged in with this pixel value.
-#' @param nodata                A length-one numeric. Assign a specified nodata
-#' value to output bands.
-#' @param init                  A numeric. Pre-initialize the output image bands
-#' with these values.
-#' @param createonly            A length-one logical. The output file is created
-#' (and potentially pre-initialized) but no input image data is copied into it.
-#' The default is FALSE.
-#' @return out_filename         A length-one character.
-gdal_mosaic <- function(input_files, out_filename = NULL, out_format = NULL,
-                        creation_option = NULL, pixelsize_xy = NULL,
-                        target_aligned_pixels = FALSE, extent_output = NULL,
-                        verbose = FALSE, separate = FALSE,
-                        color_table = FALSE, nodata_value = NULL, nodata = NULL,
-                        init = NULL, createonly = FALSE) {
-    input_files <- .validate_input_files(input_files)
-    if (is.null(out_filename)) {
-        out_filename <- file.path(getwd(), "out.tif")
-    }
-    params <- paste("-o", out_filename)
-    if (!is.null(out_format))
-        params <- append(params, paste("-of", out_format))
+    params <- character()
+    if (!is.null(of))
+        params <- append(params, paste("-of", of))
     if (!is.null(creation_option))
         params <- append(params, paste("-co", creation_option))
-    if (!is.null(pixelsize_xy))
-        params <- append(params, paste("-ps", paste(pixelsize_xy,
-                                                    collapse = " ")))
-    if (target_aligned_pixels)
+    if (!is.null(ot))
+        params <- append(params, paste("-ot", ot))
+    if (!is.null(ps))
+        params <- append(params, paste("-ps", paste(ps)))
+    if (tap)
         params <- append(params, "-tap")
-    if (!is.null(extent_output))
-        params <- append(params, paste("-ul_lr", paste(extent_output,
-                                                       collapse = " ")))
-    if (verbose)
+    if (!is.null(ul_lr))
+        params <- append(params, paste("-ul_lr", paste(ul_lr)))
+    if (v)
         params <- append(params, "-v")
     if (separate)
         params <- append(params, "-separate")
-    if (color_table)
+    if (pct)
         params <- append(params, "-pct")
     if (!is.null(nodata_value))
-        params <- append(params, paste("-n", nodata_value))
-    if (!is.null(nodata))
-        params <- append(params, paste("-a_nodata", nodata))
+        params <- append(params, paste("-nodata_value", nodata_value))
+    if (!is.null(a_nodata))
+        params <- append(params, paste("-a_nodata", a_nodata))
     if (!is.null(init))
-        params <- append(params, paste("-init", paste(init, collapse = " ")))
+        params <- append(params, paste("-init", paste(init)))
     if (createonly)
         params <- append(params, "-createonly")
+    #
     params <- append(params, input_files)
-    call_os(command = "gdal_merge.py", args = params)
+    if (is.null(out_filename)) {
+        out_filename <- file.path(getwd(), "out.tif")
+    }
+    params <- append(paste("-o", out_filename), params)
+    error <- call_os(command = "gdal_merge.py", args = params)
+    if (error) {
+        warning("Failed call to gdal_merge")
+        return(NA_character_)
+    }
     return(out_filename)
 }
+
+
+
 
 
 #' @title Convert raster between formats
@@ -256,93 +190,97 @@ gdal_mosaic <- function(input_files, out_filename = NULL, out_format = NULL,
 #' c('NAME1=VALUE1', 'NAME2=VALUE2').
 #' @return          A length-one character. out_filename.
 gdal_translate <- function(
-  input_files, out_filename = NULL, ot = NULL, strict = FALSE, of = NULL,
-  b = NULL, mask = NULL, expand = NULL, outsize = NULL, tr = NULL, r = NULL,
-  scale = NULL, exponent = NULL, unscale = FALSE, srcwin = NULL, projwin = NULL,
-  projwin_srs = NULL, epo = FALSE, eco = FALSE, a_srs = NULL, a_scale = NULL,
-  a_offset = NULL, a_ullr = NULL, a_nodata = NULL, colorinterp_X = NULL,
-  colorinterp = NULL, mo = NULL, creation_option = NULL, gcp = NULL, q = FALSE,
-  sds = FALSE, stats = FALSE, norat = FALSE, oo = NULL ){
+    input_files, out_filename = NULL, ot = NULL, strict = FALSE, of = NULL,
+    b = NULL, mask = NULL, expand = NULL, outsize = NULL, tr = NULL, r = NULL,
+    scale = NULL, exponent = NULL, unscale = FALSE, srcwin = NULL, projwin = NULL,
+    projwin_srs = NULL, epo = FALSE, eco = FALSE, a_srs = NULL, a_scale = NULL,
+    a_offset = NULL, a_ullr = NULL, a_nodata = NULL, colorinterp_X = NULL,
+    colorinterp = NULL, mo = NULL, creation_option = NULL, gcp = NULL, q = FALSE,
+    sds = FALSE, stats = FALSE, norat = FALSE, oo = NULL ){
 
-  input_files <- .validate_input_files(input_files)
-  params <- character()
-  if (!is.null(ot))
-    params <- append(params, paste("-ot", ot))
-  if (strict)
-    params <- append(params, "-strict")
-  if (!is.null(of))
-    params <- append(params, paste("-of", of))
-  if (!is.null(b))
-    params <- append(params, paste("-b", b))
-  if (!is.null(mask))
-    params <- append(params, paste("-b", mask))
-  if (!is.null(expand))
-    params <- append(params, paste("-expand", expand))
-  if (!is.null(outsize))
-    params <- append(params, paste("-outsize", paste(outsize)))
-  if (!is.null(tr))
-    params <- append(params, paste("-tr", paste(tr)))
-  if (!is.null(r))
-    params <- append(params, paste("-r", r))
-  if (!is.null(scale)) {
-    params <- append(params, paste("-scale", paste(scale)))
-    if (!is.null(exponent))
-      params <- append(params, paste("-exponent", paste(exponent)))
-  }
-  if (!is.null(unscale))
-    params <- append(params, paste("-unscale", unscale))
-  if (unscale)
-    params <- append(params, "-unscale")
-  if (!is.null(srcwin))
-    params <- append(params, paste("-srcwin", paste(srcwin)))
-  if (!is.null(projwin))
-    params <- append(params, paste("-projwin", paste(projwin)))
-  if (!is.null(projwin_srs))
-    params <- append(params, paste("-projwin_srs", projwin))
-  if (epo)
-    params <- append(params, "-epo")
-  if (eco)
-    params <- append(params, "-eco")
-  if (!is.null(a_srs))
-    params <- append(params, paste("-a_srs", a_srs))
-  if (!is.null(a_scale))
-    params <- append(params, paste("-a_scale", a_scale))
-  if (!is.null(a_offset))
-    params <- append(params, paste("-a_offset", a_offset))
-  if (!is.null(a_ullr))
-    params <- append(params, paste("-a_ullr", paste(a_ullr)))
-  if (!is.null(a_nodata))
-    params <- append(params, paste("-a_nodata", paste(a_nodata)))
-  if (!is.null(colorinterp_X))
-    params <- append(params, paste(paste0("-colorinterp_", colorinterp_X, sep = ""), colorinterp_X))
-  if (!is.null(colorinterp))
-    params <- append(params, paste("-colorinterp", colorinterp))
-  if (!is.null(mo))
-    params <- append(params, paste("-mo '", mo, "'", sep = ""))
-  if (!is.null(creation_option))
-    params <- append(params, paste("-co", creation_option))
-  if (!is.null(gcp))
-    for (l in gcp) {
-      params <- append(params, paste("-gcp", paste(l)))
+    input_files <- .validate_input_files(input_files)
+    params <- character()
+    if (!is.null(ot))
+        params <- append(params, paste("-ot", ot))
+    if (strict)
+        params <- append(params, "-strict")
+    if (!is.null(of))
+        params <- append(params, paste("-of", of))
+    if (!is.null(b))
+        params <- append(params, paste("-b", b))
+    if (!is.null(mask))
+        params <- append(params, paste("-b", mask))
+    if (!is.null(expand))
+        params <- append(params, paste("-expand", expand))
+    if (!is.null(outsize))
+        params <- append(params, paste("-outsize", paste(outsize)))
+    if (!is.null(tr))
+        params <- append(params, paste("-tr", paste(tr)))
+    if (!is.null(r))
+        params <- append(params, paste("-r", r))
+    if (!is.null(scale)) {
+        params <- append(params, paste("-scale", paste(scale)))
+        if (!is.null(exponent))
+            params <- append(params, paste("-exponent", paste(exponent)))
     }
-  if (q)
-    params <- append(params, "-q")
-  if (sds)
-    params <- append(params, "-sds")
-  if (stats)
-    params <- append(params, "-stats")
-  if (norat)
-    params <- append(params, "-norat")
-  if (!is.null(oo))
-    params <- append(params, paste("-oo", oo))
-  #
-  params <- append(params, input_files)
-  if (is.null(out_filename)) {
-    out_filename <- file.path(getwd(), "out.tif")
-  }
-  params <- append(params, out_filename)
-  call_os(command = "gdal_translate", args = params)
-  return(out_filename)
+    if (!is.null(unscale))
+        params <- append(params, paste("-unscale", unscale))
+    if (unscale)
+        params <- append(params, "-unscale")
+    if (!is.null(srcwin))
+        params <- append(params, paste("-srcwin", paste(srcwin)))
+    if (!is.null(projwin))
+        params <- append(params, paste("-projwin", paste(projwin)))
+    if (!is.null(projwin_srs))
+        params <- append(params, paste("-projwin_srs", projwin))
+    if (epo)
+        params <- append(params, "-epo")
+    if (eco)
+        params <- append(params, "-eco")
+    if (!is.null(a_srs))
+        params <- append(params, paste("-a_srs", a_srs))
+    if (!is.null(a_scale))
+        params <- append(params, paste("-a_scale", a_scale))
+    if (!is.null(a_offset))
+        params <- append(params, paste("-a_offset", a_offset))
+    if (!is.null(a_ullr))
+        params <- append(params, paste("-a_ullr", paste(a_ullr)))
+    if (!is.null(a_nodata))
+        params <- append(params, paste("-a_nodata", paste(a_nodata)))
+    if (!is.null(colorinterp_X))
+        params <- append(params, paste(paste0("-colorinterp_", colorinterp_X, sep = ""), colorinterp_X))
+    if (!is.null(colorinterp))
+        params <- append(params, paste("-colorinterp", colorinterp))
+    if (!is.null(mo))
+        params <- append(params, paste("-mo '", mo, "'", sep = ""))
+    if (!is.null(creation_option))
+        params <- append(params, paste("-co", creation_option))
+    if (!is.null(gcp))
+        for (l in gcp) {
+            params <- append(params, paste("-gcp", paste(l)))
+        }
+    if (q)
+        params <- append(params, "-q")
+    if (sds)
+        params <- append(params, "-sds")
+    if (stats)
+        params <- append(params, "-stats")
+    if (norat)
+        params <- append(params, "-norat")
+    if (!is.null(oo))
+        params <- append(params, paste("-oo", oo))
+    #
+    params <- append(params, input_files)
+    if (is.null(out_filename)) {
+        out_filename <- file.path(getwd(), "out.tif")
+    }
+    params <- append(params, out_filename)
+    error <- call_os(command = "gdal_translate", args = params)
+    if (error) {
+        warning("Failed call to gdal_translate")
+        return(NA_character_)
+    }
+    return(out_filename)
 }
 
 
@@ -511,7 +449,10 @@ gdal_warp <- function(input_files, out_filename = NULL, s_srs = NULL,
         out_filename <- file.path(getwd(), "out.tif")
     }
     params <- append(params, out_filename)
-
-    call_os(command = "gdalwarp", args = params)
+    error <- call_os(command = "gdalwarp", args = params)
+    if (error) {
+        warning("Failed call to gdalwarp")
+        return(NA_character_)
+    }
     return(out_filename)
 }

@@ -13,6 +13,21 @@ test_that("add_missing_dates works", {
 })
 
 
+
+test_that("call_os works", {
+
+
+    res <- ""
+    switch(Sys.info()[['sysname']],
+           # Darwin = {},
+           # Windows = {},
+           Linux  = {
+               expect_equal(call_os("ls", "-l", stdout = "", stderr = ""), 0)
+           }
+
+    )})
+
+
 test_that("gdal_match_name works", {
     res_band2 <- gdal_match_name(path_modis = "/home/alber/MOD13Q1/2011/MOD13Q1.A2011353.h13v09.006.2015230024001.hdf", band = "sr_band2")
     res_band4 <- gdal_match_name(path_modis = "/home/alber/MOD13Q1/2011/MOD13Q1.A2011353.h13v09.006.2015230024001.hdf", band = "sr_band4")
