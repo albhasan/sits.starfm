@@ -2,6 +2,7 @@ sits.env <- new.env()
 utils::globalVariables(c(
     ".",
     "%>%",
+    "band",
     "band_designation",
     "brick_ratio",
     "cloud_cov",
@@ -9,6 +10,7 @@ utils::globalVariables(c(
     "dist",
     "file_path",
     "files",
+    "filled",
     "fill_value",
     "gdal_prefix",
     "gdal_suffix",
@@ -16,12 +18,15 @@ utils::globalVariables(c(
     "h",
     "img_date",
     "l8_sr_designation",
+    "logger",
     "mask",
     "n_expected",
     "n_img",
     "neigh",
+    "next_best",
     "PATH",
     "prodes_year",
+    "pyear",
     "ROW",
     "row_number",
     "sat_image",
@@ -48,3 +53,15 @@ utils::globalVariables(c(
 #' @param lhs,rhs A visualisation and a function to apply to it.
 #' @export
 NULL
+
+
+.onAttach <- function(libname, pkgname) {
+    if (!exists("logger") || is.null(logger) || is.na(logger)) {
+        logger                 <- log4r::create.logger()
+        log4r::logfile(logger) <- file.path(paste0("sits.starfm_", system('uname -n', intern = TRUE),".log"))
+        log4r::level(logger)   <- "DEBUG"
+        log4r::info(logger, "...............................................................................")
+    }
+    packageStartupMessage(sprintf("sits.starfm. Logger file: %s", logger$logfile))
+}
+

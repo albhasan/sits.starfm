@@ -1,6 +1,6 @@
 Package: sits.starfm
 Title: Use the StarFM Fusion Model on Landsat 8 Images
-Version: 0.0.0.9003
+Version: 0.0.0.9005
 Authors@R: 
     person(given = "Alber",
            family = "Sanchez",
@@ -12,6 +12,9 @@ Encoding: UTF-8
 LazyData: true
 Imports:
     dplyr,
+    ensurer,
+    knitr,
+    log4r,
     lubridate,
     magrittr,
     methods,
@@ -19,14 +22,15 @@ Imports:
     raster,
     sf,
     stringr,
-    tidyr
+    tibble,
+    tidyr,
+    zoo
 SystemRequirements:
     gdalwarp,
     gdal_calc.py,
     StarFM.exe
 Suggests: 
     devtools,
-    knitr,
     rmarkdown,
     testthat
 VignetteBuilder: knitr
