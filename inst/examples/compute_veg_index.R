@@ -1,3 +1,4 @@
+#!/usr/bin/env Rscript
 # compute bricks of vegetation indexes
 
 library(devtools)

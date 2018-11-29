@@ -1,6 +1,7 @@
 # Compare the values stored in the vegetation indexes to those computed in R
 
 library(tidyverse)
+library(gtools)
 
 get_ts <- function(brick_path, pix_x, pix_y){
     cmd <- paste("gdallocationinfo", brick_path, pix_x, pix_y)
