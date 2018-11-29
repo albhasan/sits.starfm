@@ -15,8 +15,6 @@ test_that("add_missing_dates works", {
 
 
 test_that("call_os works", {
-
-
     res <- ""
     switch(Sys.info()[['sysname']],
            # Darwin = {},
@@ -24,7 +22,6 @@ test_that("call_os works", {
            Linux  = {
                expect_equal(call_os("ls", "-l", stdout = "", stderr = ""), 0)
            }
-
     )})
 
 

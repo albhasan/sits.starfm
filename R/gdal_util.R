@@ -47,7 +47,7 @@ gdal_calc <- function(input_files, out_filename = NULL, expression,
                                    input_files))
     if (!is.null(band_number)) {
         params <- append(params,
-                         paste0(paste0("-", LETTERS[1:length(band_number)],
+                         paste0(paste0("--", LETTERS[1:length(band_number)],
                                        "_band="), band_number))
     }
     if (!is.null(dstnodata))

@@ -4,10 +4,10 @@
 \alias{compute_vi}
 \title{Compute vegetation indexes from bricks.}
 \usage{
-compute_vi(brick_paths)
+compute_vi(brick_path)
 }
 \arguments{
-\item{brick_paths}{A length-one character. Path to bricks.}
+\item{brick_path}{A length-one character. Path to bricks.}
 }
 \value{
 A character. Path to the created vegetation index bricks.

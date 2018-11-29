@@ -495,15 +495,26 @@ call_os <- function(command, args, stdout = "", stderr = "") {
 }
 
 
+
+
+
+
+
+
+
+
+
+
 #' @title Compute vegetation indexes from bricks.
 #' @author Alber Sanchez, \email{alber.ipia@@inpe.br}
 #' @description Compute vegetation indexes from bricks.
 #'
-#' @param brick_paths A length-one character. Path to bricks.
+#' @param brick_path A length-one character. Path to bricks.
 #' @return            A character. Path to the created vegetation index bricks.
 #' @export
-compute_vi <- function(brick_paths){
-    brick_tb <- brick_paths %>% list.files(pattern = "^brick_.*[.]tif$", full.names = TRUE) %>%
+compute_vi <- function(brick_path){
+
+    brick_tb <- brick_path %>% list.files(pattern = "^brick_.*[.]tif$", full.names = TRUE) %>%
         dplyr::as_tibble() %>% dplyr::rename(file_path = value) %>%
         dplyr::mutate(scene = stringr::str_extract(basename(file_path), "[0-9]{6}"),
                       pyear = stringr::str_extract(basename(file_path), "_[0-9]{4}_"),
@@ -524,20 +535,46 @@ compute_vi <- function(brick_paths){
         b7 <- brick_tb %>% get_path(x, "sr_band7")
         ndvi_filename <- NA
         savi_filename <- NA
-        msavi_filename <- NA
+        #msavi_filename <- NA
         if (!all(is.na(b5), is.na(b4))) {
             ndvi_filename <- stringr::str_replace(b5, "sr_band5", "ndvi")
             savi_filename <- stringr::str_replace(b5, "sr_band5", "savi")
             #msavi_filename <- stringr::str_replace(b5, "sr_band5", "msavi")
-            # TODO ndvi computation using spreadsheets do not match gdal_cal & gdal_locationinfo 4000 4000 ----
-            gdal_calc(input_files = c(b5, b4),
-                      out_filename = ndvi_filename,
-                      expression = "((A.astype(float64) - B.astype(float64)) / (A.astype(float64) + B.astype(float64)) + 0.00001) * 10000",
-                      all_bands = c("A", "B"))
-            gdal_calc(input_files = c(b5, b4),
-                      out_filename = savi_filename,
-                      expression = "((A.astype(float64) - B.astype(float64)) / (A.astype(float64) + B.astype(float64) + 5000.00001)) * 1.5 * 10000",
-                      all_bands = c("A", "B"), verbose = TRUE)
+
+            # NOTE ndvi computation using spreadsheets do not match gdal_cal &
+            # gdal_locationinfo 4000 4000 ----
+            # See compute_veg_index.R
+            n_bands <- system2("gdalinfo", b5, stdout = TRUE) %>%
+                stringr::str_subset("Band") %>% dplyr::last() %>%
+                stringr::str_split(" ") %>% unlist() %>% dplyr::nth(2) %>%
+                as.numeric()
+
+            ndvi_tmp <- lapply(1:n_bands, function(x){
+                fname <- ndvi_filename %>% stringr::str_replace(".tif", paste0("_tmp_", x, ".tif"))
+                gdal_calc(input_files = c(b5, b4),
+                          out_filename = fname,
+                          expression = "((A.astype(float64) - B.astype(float64)) / (A.astype(float64) + B.astype(float64)) + 0.00001) * 10000",
+                          band_number = rep(x,2))
+            })
+            ndvi_tmp %>% unlist() %>%
+                gdal_merge(out_filename = ndvi_filename, separate = TRUE,
+                           of = "GTiff", creation_option = "BIGTIFF=YES",
+                           init = -3000, a_nodata = -3000)
+            file.remove(unlist(ndvi_tmp))
+
+            savi_tmp <- lapply(1:n_bands, function(x){
+                fname <- savi_filename %>% stringr::str_replace(".tif", paste0("_tmp_", x, ".tif"))
+                gdal_calc(input_files = c(b5, b4),
+                          out_filename = fname,
+                          expression = "((A.astype(float64) - B.astype(float64)) / (A.astype(float64) + B.astype(float64) + 5000.00001)) * 1.5 * 10000",
+                          band_number = rep(x,2))
+            })
+            savi_tmp %>% unlist() %>%
+                gdal_merge(out_filename = savi_filename, separate = TRUE,
+                           of = "GTiff", creation_option = "BIGTIFF=YES",
+                           init = -3000, a_nodata = -3000)
+            file.remove(unlist(savi_tmp))
+
             # TODO: msavi is nor working ----
             # gdal_calc(input_files = c(b5, b4),
             #           out_filename = msavi_filename,
