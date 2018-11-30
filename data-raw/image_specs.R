@@ -1,4 +1,5 @@
-# Specifications Landsat 8 surface reflectance - Table 7.1 pag 20 LaSRC product guide
+# Specifications Landsat 8 surface reflectance - Table 7.1 pag 21 LaSRC product guide
+# Short names adapted from "The Spectral Response of the Landsat-8 Operational Land Imager" Table 1, page 10233
 SPECS_L8_SR <- tibble::tibble(
     band_designation = c("sr_band1", "sr_band2", "sr_band3", "sr_band4",
                          "sr_band5", "sr_band6", "sr_band7", "pixel_qa",
@@ -22,7 +23,10 @@ SPECS_L8_SR <- tibble::tibble(
                        NA),
     scale_factor = c(1e-04, 1e-04, 1e-04, 1e-04, 1e-04, 1e-04, 1e-04, NA, NA,
                      NA),
-    mod13q1_name = c(NA, "blue", NA, "red", "nir", NA, "mir", NA, NA, NA)
+    mod13q1_name = c(NA, "blue", NA, "red", "nir", NA, "mir", NA, NA, NA),
+    short_name = c("Ultra Blue", "Blue", "Green", "Red", "NIR", "SWIR1",
+                    "SWIR2", "Quality", "Aerosol",
+                    "Saturation")
 )
 
 # Spefications MOD13Q1 V6 -
@@ -72,4 +76,4 @@ SPECS_MOD13Q1 <- tibble::tibble(
     l8_sr_designation = c(NA, NA, NA, "sr_band4", "sr_band5", "sr_band2",
                           "sr_band7", NA, NA, NA, NA, NA))
 
-usethis::use_data(SPECS_L8_SR, SPECS_MOD13Q1, internal = TRUE)
+usethis::use_data(SPECS_L8_SR, SPECS_MOD13Q1, internal = TRUE, overwrite = TRUE)

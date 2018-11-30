@@ -241,12 +241,20 @@ build_brick <- function(landsat_path, modis_path, scene_shp, tile_shp,
     filled_tb <- brick_imgs %>% tidyr::unnest(filled) %>%
         dplyr::mutate(band = get_landsat_band(filled))
 
-    #browser("Test the filter(band == x)")
+    first_img_date <- brick_imgs %>% dplyr::slice(1) %>%
+        dplyr::pull(img_date) %>% dplyr::first()
 
-    brick_path <- lapply(brick_bands, function(x, filled_tb, brick_path){
+    brick_path <- lapply(brick_bands, function(x, filled_tb, brick_path,
+                                               first_img_date){
+
+        band_short_name <- SPECS_L8_SR %>% dplyr::filter(band_designation == x) %>%
+            dplyr::pull(short_name) %>% dplyr::first() %>%
+            stringr::str_replace(" ", "_") %>% tolower()
         out_fn <- file.path(brick_path,
-                            paste0(paste("brick_LC08MOD", brick_scene, brick_year,
-                                         x, sep = "_"), ".tif" ))
+                            paste0(paste("LC8SR-MOD13Q1-STARFM", brick_scene,
+                                         first_img_date, band_short_name,
+                                         "STACK_BRICK", sep = "_"), ".tif" ))
+
         # NOTE: use filled_tb$filled because dplyr::pull drops the NAs and we don't know where to repeat images!!!!!!!!!!!!
         paths <- filled_tb %>% dplyr::filter(band %in% c(x, NA)) %>%
             .$filled %>% zoo::na.locf() %>%
@@ -254,15 +262,12 @@ build_brick <- function(landsat_path, modis_path, scene_shp, tile_shp,
                        creation_option = "BIGTIFF=YES", init = -3000,
                        a_nodata = -3000)
         return(paths)
-    }, filled_tb = filled_tb, brick_path = brick_path)
-    save(brick_path, file = file.path(tmp_dir, "brick_path.Rdata"))
-
-
+    }, filled_tb = filled_tb, brick_path = brick_path, first_img_date = first_img_date)
+    #save(brick_path, file = file.path(tmp_dir, "brick_path.Rdata"))
 
     brick_imgs_fp <- file.path(starfm_dir,
                                paste0(paste("brick_imgs", brick_scene,
-                                            brick_year, sep = "_"),
-                                      ".Rdata"))
+                                            brick_year, sep = "_"), ".Rdata"))
     save(brick_imgs, file = brick_imgs_fp)
 
     log4r::info(logger, sprintf("Finished scene %s year %s", brick_scene, brick_year))
@@ -985,12 +990,9 @@ run_starFM <- function(img0_f, img1_f, band, out_filename = NULL, tmp_dir = NULL
                                  c(img0_f$sat_image, img1_f$sat_image, band,
                                    out_filename, tmp_dir)))
 
-
-    # TODO ----
+    # TODO create masks required by starFM ----
     # not working, StarFM throws exception!
-    # create masks required by starFM
     # gdal_calc.py --type=Byte -A LC08_L1TP_226064_20150924_20170403_01_T1_pixel_qa.tif --outfile=result.tif --calc="((numpy.bitwise_and(A, 40) == 0) * 1).astype(bool_)"
-
 
     # NOTE: random suffix, unrelated to tmp_dir
     tmp_base_name <- basename(tempfile(pattern = paste0(band, "_"),

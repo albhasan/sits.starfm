@@ -32,6 +32,7 @@ utils::globalVariables(c(
     "sat_image",
     "scale_factor",
     "scene",
+    "short_name",
     "starfm",
     "t0_fine",
     "tile",
