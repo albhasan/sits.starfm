@@ -500,26 +500,18 @@ call_os <- function(command, args, stdout = "", stderr = "") {
 }
 
 
-
-
-
-
-
-
-
-
-
-
 #' @title Compute vegetation indexes from bricks.
 #' @author Alber Sanchez, \email{alber.ipia@@inpe.br}
 #' @description Compute vegetation indexes from bricks.
 #'
 #' @param brick_path A length-one character. Path to bricks.
+#' @param brick_pattern A length-one character. Regular expression used to filter the files in brick_path.
 #' @return            A character. Path to the created vegetation index bricks.
 #' @export
-compute_vi <- function(brick_path){
+compute_vi <- function(brick_path, brick_pattern = "^brick_.*[.]tif$",
+                       vi_index = c("ndvi", "savi")){
 
-    brick_tb <- brick_path %>% list.files(pattern = "^brick_.*[.]tif$", full.names = TRUE) %>%
+    brick_tb <- brick_path %>% list.files(pattern = brick_pattern, full.names = TRUE) %>%
         dplyr::as_tibble() %>% dplyr::rename(file_path = value) %>%
         dplyr::mutate(scene = stringr::str_extract(basename(file_path), "[0-9]{6}"),
                       pyear = stringr::str_extract(basename(file_path), "_[0-9]{4}_"),
@@ -527,10 +519,33 @@ compute_vi <- function(brick_path){
                       band = get_landsat_band(file_path)) %>%
         tidyr::nest(file_path, band, .key = "files")
 
+    # Get the path to a file from a brick tibble
     get_path <- function(brick_tb, x, aband){
         brick_tb %>% dplyr::slice(x) %>% dplyr::pull(files) %>%
             dplyr::bind_rows() %>% dplyr::filter(band == aband) %>%
             dplyr::pull(file_path) %>% dplyr::first() %>% return()
+    }
+
+    # Compute a vegetation index and build the brick
+    apply_vi <- function(n_bands, vi_exp, x, vi_filename){
+        # compute the VI (one band at the time)
+        # NOTE: gdal_calc.py could have a way to compute all bands at once
+        vi_tmp <- lapply(1:n_bands, function(x){
+            fname <- vi_filename %>%
+                stringr::str_replace(".tif", paste0("_tmp_", x, ".tif"))
+            gdal_calc(input_files = c(b5, b4),
+                      out_filename = fname,
+                      expression = vi_exp,
+                      band_number = rep(x,2))
+        })
+        # stack the bands
+        vi_tmp %>% unlist() %>%
+            gdal_merge(out_filename = vi_filename, separate = TRUE,
+                       of = "GTiff", creation_option = "BIGTIFF=YES",
+                       init = -3000, a_nodata = -3000)
+        # clening
+        file.remove(unlist(vi_tmp))
+        return(vi_filename)
     }
 
     vi_paths <- lapply(1:nrow(brick_tb), function(x, brick_tb){
@@ -542,10 +557,6 @@ compute_vi <- function(brick_path){
         savi_filename <- NA
         #msavi_filename <- NA
         if (!all(is.na(b5), is.na(b4))) {
-            ndvi_filename <- stringr::str_replace(b5, "sr_band5", "ndvi")
-            savi_filename <- stringr::str_replace(b5, "sr_band5", "savi")
-            #msavi_filename <- stringr::str_replace(b5, "sr_band5", "msavi")
-
             # NOTE ndvi computation using spreadsheets do not match gdal_cal &
             # gdal_locationinfo 4000 4000 ----
             # See compute_veg_index.R
@@ -553,32 +564,14 @@ compute_vi <- function(brick_path){
                 stringr::str_subset("Band") %>% dplyr::last() %>%
                 stringr::str_split(" ") %>% unlist() %>% dplyr::nth(2) %>%
                 as.numeric()
-
-            ndvi_tmp <- lapply(1:n_bands, function(x){
-                fname <- ndvi_filename %>% stringr::str_replace(".tif", paste0("_tmp_", x, ".tif"))
-                gdal_calc(input_files = c(b5, b4),
-                          out_filename = fname,
-                          expression = "((A.astype(float64) - B.astype(float64)) / (A.astype(float64) + B.astype(float64)) + 0.00001) * 10000",
-                          band_number = rep(x,2))
-            })
-            ndvi_tmp %>% unlist() %>%
-                gdal_merge(out_filename = ndvi_filename, separate = TRUE,
-                           of = "GTiff", creation_option = "BIGTIFF=YES",
-                           init = -3000, a_nodata = -3000)
-            file.remove(unlist(ndvi_tmp))
-
-            savi_tmp <- lapply(1:n_bands, function(x){
-                fname <- savi_filename %>% stringr::str_replace(".tif", paste0("_tmp_", x, ".tif"))
-                gdal_calc(input_files = c(b5, b4),
-                          out_filename = fname,
-                          expression = "((A.astype(float64) - B.astype(float64)) / (A.astype(float64) + B.astype(float64) + 5000.00001)) * 1.5 * 10000",
-                          band_number = rep(x,2))
-            })
-            savi_tmp %>% unlist() %>%
-                gdal_merge(out_filename = savi_filename, separate = TRUE,
-                           of = "GTiff", creation_option = "BIGTIFF=YES",
-                           init = -3000, a_nodata = -3000)
-            file.remove(unlist(savi_tmp))
+            if ("ndvi" %in% vi_index) {
+                ndvi_exp <- "((A.astype(float64) - B.astype(float64)) / (A.astype(float64) + B.astype(float64)) + 0.00001) * 10000"
+                ndvi_filename <- apply_vi(n_bands = n_bands, vi_exp = ndvi_exp, x, vi_filename = stringr::str_replace(b5, "sr_band5", "ndvi"))
+            }
+            if ("savi" %in% vi_index) {
+                savi_exp <- "((A.astype(float64) - B.astype(float64)) / (A.astype(float64) + B.astype(float64) + 5000.00001)) * 1.5 * 10000"
+                savi_filename <- apply_vi(n_bands = n_bands, vi_exp = savi_exp, x, vi_filename = stringr::str_replace(b5, "sr_band5", "savi"))
+            }
 
             # TODO: msavi is nor working ----
             # gdal_calc(input_files = c(b5, b4),
@@ -764,21 +757,27 @@ get_next_image <- function(brick_imgs, ref_row_number, cloud_threshold = 0.1) {
 #' @author Alber Sanchez, \email{alber.ipia@@inpe.br}
 #' @description Get the full MOD13Q1 name from a landsat file
 #'
-#' @param path   A character. Path to a Landsat file.
+#' @param path      A character. Path to a Landsat file.
+#' @param band_name A character. The type of name to retrieve. c("band_designation", "short_name")
 #' @return A character.
 #' @export
-get_landsat_band <- function(path) {
+get_landsat_band <- function(path, band_name = "band_designation") {
     if (length(path) == 1) {
-        path %>% basename() %>%
-            stringr::str_extract(SPECS_L8_SR$band_designation) %>%
-            .[!is.na(.)] %>% dplyr::first() %>%
-            return()
+        if (is.na(path))
+            return(NA)
+        bnames <- SPECS_L8_SR %>% dplyr::pull(!!band_name)
+        res <- path %>% basename() %>%
+            stringr::str_extract(stringr::fixed(bnames, ignore_case = TRUE))
+        if (all(is.na(res)))
+            return(NA)
+        res %>% .[!is.na(.)] %>% dplyr::first() %>% return()
     } else {
-        res <- sapply(path, get_landsat_band)
+        res <- sapply(path, get_landsat_band, band_name = band_name)
         names(res) <- NULL
         return(res)
     }
 }
+
 
 #' @title Get the metadata required to call gdal's utilitaries.
 #' @author Alber Sanchez, \email{alber.ipia@@inpe.br}

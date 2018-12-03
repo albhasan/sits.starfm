@@ -25,6 +25,59 @@ test_that("call_os works", {
     )})
 
 
+test_that("get_landsat_band works", {
+    expect_equal(get_landsat_band(NA), NA)
+    expect_match(get_landsat_band("/home/alber/landsat8/LC08_225_062/LC08_L1TP_225062_20180112_20180119_01_T2_sr_band2.tif"), "sr_band2")
+    expect_true(is.na(get_landsat_band("/home/alber/landsat8/LC08_225_062/LC08_L1TP_225062_20180112_20180119_01_T2_MTL.txt")))
+
+    expect_equal(
+        get_landsat_band(c("LC08_L1TP_225062_20180112_20180119_01_T2_ANG.txt",
+                           "LC08_L1TP_225062_20180112_20180119_01_T2_MTL.txt",
+                           "LC08_L1TP_225062_20180112_20180119_01_T2_pixel_qa.tif",
+                           "LC08_L1TP_225062_20180112_20180119_01_T2_radsat_qa.tif",
+                           "LC08_L1TP_225062_20180112_20180119_01_T2_sr_aerosol.tif",
+                           "LC08_L1TP_225062_20180112_20180119_01_T2_sr_band1.tif",
+                           "LC08_L1TP_225062_20180112_20180119_01_T2_sr_band2.tif",
+                           "LC08_L1TP_225062_20180112_20180119_01_T2_sr_band3.tif",
+                           "LC08_L1TP_225062_20180112_20180119_01_T2_sr_band4.tif",
+                           "LC08_L1TP_225062_20180112_20180119_01_T2_sr_band5.tif",
+                           "LC08_L1TP_225062_20180112_20180119_01_T2_sr_band6.tif",
+                           "LC08_L1TP_225062_20180112_20180119_01_T2_sr_band7.tif",
+                           "LC08_L1TP_225062_20180112_20180119_01_T2_sr_evi.tif",
+                           "LC08_L1TP_225062_20180112_20180119_01_T2_sr_ndvi.tif",
+                           "LC08_L1TP_225062_20180112_20180119_01_T2.xml")),
+        c(NA, NA, "pixel_qa", "radsat_qa", "sr_aerosol", "sr_band1",
+          "sr_band2", "sr_band3", "sr_band4", "sr_band5", "sr_band6",
+          "sr_band7", NA, NA, NA)
+    )
+
+    expect_equal(
+        get_landsat_band(path = c(
+            "/home/alber/shared/brick_interp/LC8SR-MOD13Q1-MYD13Q1_225063_2013-08-29_nir_STACK_BRICK.tif",
+            "/home/alber/shared/brick_interp/LC8SR-MOD13Q1-MYD13Q1_225063_2013-08-29_red_STACK_BRICK.tif",
+            "/home/alber/shared/brick_interp/LC8SR-MOD13Q1-MYD13Q1_225063_2013-08-29_swir2_STACK_BRICK.tif",
+            "/home/alber/shared/brick_interp/LC8SR-MOD13Q1-MYD13Q1_225063_2014-08-29_nir_STACK_BRICK.tif",
+            "/home/alber/shared/brick_interp/LC8SR-MOD13Q1-MYD13Q1_225063_2014-08-29_red_STACK_BRICK.tif",
+            "/home/alber/shared/brick_interp/LC8SR-MOD13Q1-MYD13Q1_225063_2014-08-29_swir2_STACK_BRICK.tif",
+            "/home/alber/shared/brick_interp/LC8SR-MOD13Q1-MYD13Q1_225063_2015-08-29_nir_STACK_BRICK.tif",
+            "/home/alber/shared/brick_interp/LC8SR-MOD13Q1-MYD13Q1_225063_2015-08-29_red_STACK_BRICK.tif",
+            "/home/alber/shared/brick_interp/LC8SR-MOD13Q1-MYD13Q1_225063_2015-08-29_swir2_STACK_BRICK.tif"
+        ), band_name = "short_name"),
+        c("nir", "red", "swir2", "nir", "red", "swir2", "nir", "red", "swir2")
+    )
+
+    expect_equal(
+        get_landsat_band(path = c(
+            "/home/alber/shared/brick/LC8SR-MOD13Q1-STARFM_233067_2016-08-10_ndvi_STACK_BRICK.tif",
+            "/home/alber/shared/brick/LC8SR-MOD13Q1-STARFM_233067_2016-08-10_nir_STACK_BRICK.tif",
+            "/home/alber/shared/brick/LC8SR-MOD13Q1-STARFM_233067_2016-08-10_red_STACK_BRICK.tif",
+            "/home/alber/shared/brick/LC8SR-MOD13Q1-STARFM_233067_2016-08-10_swir2_STACK_BRICK.tif"
+        ), band_name = "short_name"),
+        c(NA, "nir", "red", "swir2")
+    )
+})
+
+
 test_that("gdal_match_name works", {
     res_band2 <- gdal_match_name(path_modis = "/home/alber/MOD13Q1/2011/MOD13Q1.A2011353.h13v09.006.2015230024001.hdf", band = "sr_band2")
     res_band4 <- gdal_match_name(path_modis = "/home/alber/MOD13Q1/2011/MOD13Q1.A2011353.h13v09.006.2015230024001.hdf", band = "sr_band4")
