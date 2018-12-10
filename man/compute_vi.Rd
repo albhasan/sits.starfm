@@ -4,10 +4,15 @@
 \alias{compute_vi}
 \title{Compute vegetation indexes from bricks.}
 \usage{
-compute_vi(brick_path)
+compute_vi(brick_path, brick_pattern = "^brick_.*[.]tif$",
+  vi_index = c("ndvi", "savi"))
 }
 \arguments{
 \item{brick_path}{A length-one character. Path to bricks.}
+
+\item{brick_pattern}{A length-one character. Regular expression used to filter the files in brick_path.}
+
+\item{vi_index}{A character. The indexes to be computed.}
 }
 \value{
 A character. Path to the created vegetation index bricks.

@@ -2,6 +2,8 @@ sits.env <- new.env()
 utils::globalVariables(c(
     ".",
     "%>%",
+    "b4",
+    "b5",
     "band",
     "band_designation",
     "brick_ratio",

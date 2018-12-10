@@ -4,10 +4,12 @@
 \alias{get_landsat_band}
 \title{Get the Landsat band name from the file path}
 \usage{
-get_landsat_band(path)
+get_landsat_band(path, band_name = "band_designation")
 }
 \arguments{
 \item{path}{A character. Path to a Landsat file.}
+
+\item{band_name}{A character. The type of name to retrieve. c("band_designation", "short_name")}
 }
 \value{
 A character.

@@ -504,8 +504,9 @@ call_os <- function(command, args, stdout = "", stderr = "") {
 #' @author Alber Sanchez, \email{alber.ipia@@inpe.br}
 #' @description Compute vegetation indexes from bricks.
 #'
-#' @param brick_path A length-one character. Path to bricks.
+#' @param brick_path    A length-one character. Path to bricks.
 #' @param brick_pattern A length-one character. Regular expression used to filter the files in brick_path.
+#' @param vi_index      A character. The indexes to be computed.
 #' @return            A character. Path to the created vegetation index bricks.
 #' @export
 compute_vi <- function(brick_path, brick_pattern = "^brick_.*[.]tif$",
@@ -514,9 +515,8 @@ compute_vi <- function(brick_path, brick_pattern = "^brick_.*[.]tif$",
     brick_tb <- brick_path %>% list.files(pattern = brick_pattern, full.names = TRUE) %>%
         dplyr::as_tibble() %>% dplyr::rename(file_path = value) %>%
         dplyr::mutate(scene = stringr::str_extract(basename(file_path), "[0-9]{6}"),
-                      pyear = stringr::str_extract(basename(file_path), "_[0-9]{4}_"),
-                      pyear = stringr::str_sub(pyear, 2, 5),
-                      band = get_landsat_band(file_path)) %>%
+                      first_date = as.Date(stringr::str_extract(basename(file_path), "[0-9]{4}-[0-9]{2}-[0-9]{2}")),
+                      band = get_landsat_band(file_path, band_name = "short_name")) %>%
         tidyr::nest(file_path, band, .key = "files")
 
     # Get the path to a file from a brick tibble
@@ -548,41 +548,56 @@ compute_vi <- function(brick_path, brick_pattern = "^brick_.*[.]tif$",
         return(vi_filename)
     }
 
-    vi_paths <- lapply(1:nrow(brick_tb), function(x, brick_tb){
-        b2 <- brick_tb %>% get_path(x, "sr_band2")
-        b4 <- brick_tb %>% get_path(x, "sr_band4")
-        b5 <- brick_tb %>% get_path(x, "sr_band5")
-        b7 <- brick_tb %>% get_path(x, "sr_band7")
-        ndvi_filename <- NA
-        savi_filename <- NA
-        #msavi_filename <- NA
-        if (!all(is.na(b5), is.na(b4))) {
-            # NOTE ndvi computation using spreadsheets do not match gdal_cal &
-            # gdal_locationinfo 4000 4000 ----
-            # See compute_veg_index.R
-            n_bands <- system2("gdalinfo", b5, stdout = TRUE) %>%
-                stringr::str_subset("Band") %>% dplyr::last() %>%
-                stringr::str_split(" ") %>% unlist() %>% dplyr::nth(2) %>%
-                as.numeric()
-            if ("ndvi" %in% vi_index) {
-                ndvi_exp <- "((A.astype(float64) - B.astype(float64)) / (A.astype(float64) + B.astype(float64)) + 0.00001) * 10000"
-                ndvi_filename <- apply_vi(n_bands = n_bands, vi_exp = ndvi_exp, x, vi_filename = stringr::str_replace(b5, "sr_band5", "ndvi"))
-            }
-            if ("savi" %in% vi_index) {
-                savi_exp <- "((A.astype(float64) - B.astype(float64)) / (A.astype(float64) + B.astype(float64) + 5000.00001)) * 1.5 * 10000"
-                savi_filename <- apply_vi(n_bands = n_bands, vi_exp = savi_exp, x, vi_filename = stringr::str_replace(b5, "sr_band5", "savi"))
-            }
 
-            # TODO: msavi is nor working ----
-            # gdal_calc(input_files = c(b5, b4),
-            #           out_filename = msavi_filename,
-            #           expression = "((2 * A.astype(float64)/10000 + 1 - sqrt((2 * A.astype(float64)/10000 + 1) ^2 - 8 * (A.astype(float64) - B.astype(float64))/10000)) / 2) * 10000 ",
-            #           all_bands = c("A", "B"))
-        } else {
-            warning("No vegetation indexes was computed because of missing bricks.")
+
+
+
+    #vi_paths <- lapply(1:nrow(brick_tb),
+    vi_paths <- ""
+    for (x in 1:nrow(brick_tb)) {
+        print(x)
+        test <- function(x, brick_tb) {
+            b2 <- brick_tb %>% get_path(x, "blue")
+            b4 <- brick_tb %>% get_path(x, "red")
+            b5 <- brick_tb %>% get_path(x, "nir")
+            b7 <- brick_tb %>% get_path(x, "swir2")
+            ndvi_filename <- NA
+            savi_filename <- NA
+            #msavi_filename <- NA
+            if (!all(is.na(b5), is.na(b4))) {
+                # NOTE ndvi computation using spreadsheets do not match gdal_cal &
+                # gdal_locationinfo 4000 4000 ----
+                # See compute_veg_index.R
+                n_bands <- system2("gdalinfo", b5, stdout = TRUE) %>%
+                    stringr::str_subset("Band") %>% dplyr::last() %>%
+                    stringr::str_split(" ") %>% unlist() %>% dplyr::nth(2) %>%
+                    as.numeric()
+                if ("ndvi" %in% vi_index) {
+                    ndvi_exp <- "((A.astype(float64) - B.astype(float64)) / (A.astype(float64) + B.astype(float64)) + 0.00001) * 10000"
+                    ndvi_filename <- apply_vi(n_bands = n_bands, vi_exp = ndvi_exp,
+                                              x, vi_filename = stringr::str_replace(b5, "nir", "ndvi"))
+                }
+                if ("savi" %in% vi_index) {
+                    savi_exp <- "((A.astype(float64) - B.astype(float64)) / (A.astype(float64) + B.astype(float64) + 5000.00001)) * 1.5 * 10000"
+                    savi_filename <- apply_vi(n_bands = n_bands, vi_exp = savi_exp, x, vi_filename = stringr::str_replace(b5, "nir", "savi"))
+                }
+
+                # TODO: msavi is nor working ----
+                # gdal_calc(input_files = c(b5, b4),
+                #           out_filename = msavi_filename,
+                #           expression = "((2 * A.astype(float64)/10000 + 1 - sqrt((2 * A.astype(float64)/10000 + 1) ^2 - 8 * (A.astype(float64) - B.astype(float64))/10000)) / 2) * 10000 ",
+                #           all_bands = c("A", "B"))
+            } else {
+                warning("No vegetation indexes was computed because of missing bricks.")
+            }
+            return(c(ndvi = ndvi_filename, savi = savi_filename))
         }
-        return(c(ndvi = ndvi_filename, savi = savi_filename))
-    }, brick_tb = brick_tb)
+        vi_paths <- c(vi_paths, test(x, brick_tb))
+    }
+
+    #, brick_tb = brick_tb)
+
+
     return(vi_paths)
 }
 
@@ -762,9 +777,9 @@ get_next_image <- function(brick_imgs, ref_row_number, cloud_threshold = 0.1) {
 #' @return A character.
 #' @export
 get_landsat_band <- function(path, band_name = "band_designation") {
+    stopifnot(band_name %in% c("band_designation", "short_name"))
     if (length(path) == 1) {
-        if (is.na(path))
-            return(NA)
+        if (is.na(path)) return(NA)
         bnames <- SPECS_L8_SR %>% dplyr::pull(!!band_name)
         res <- path %>% basename() %>%
             stringr::str_extract(stringr::fixed(bnames, ignore_case = TRUE))

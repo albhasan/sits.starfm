@@ -1,7 +1,10 @@
 .validate_input_files <- function(input_files) {
+
+    print(input_files)
+
     stopifnot(is.character(input_files))
     if (any(is.na(input_files))) {
-        warning("NAs found among the input files.")
+        warning(sprintf("NAs found among the input files: ", input_files))
         input_files <- input_files[!is.na(input_files)]
     }
     return(input_files)
@@ -33,6 +36,7 @@
 #' The default is FALSE.
 #' @param quiet                 A length-one logical. The default is FALSE.
 #' @return out_filename A length-one character.
+#' @export
 gdal_calc <- function(input_files, out_filename = NULL, expression,
                       band_number = NULL, dstnodata = NULL, data_type = NULL,
                       out_format = NULL, creation_option = NULL,

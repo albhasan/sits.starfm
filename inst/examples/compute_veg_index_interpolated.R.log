@@ -1,0 +1,111 @@
+     checking for file ‘/home/alber/Documents/data/experiments/l8mod-fusion/Rpackage/sits.starfm/DESCRIPTION’ ...  ✔  checking for file ‘/home/alber/Documents/data/experiments/l8mod-fusion/Rpackage/sits.starfm/DESCRIPTION’
+  ─  preparing ‘sits.starfm’:
+     checking DESCRIPTION meta-information ...  ✔  checking DESCRIPTION meta-information
+  ─  installing the package to build vignettes
+     creating vignettes ...  ✔  creating vignettes (1.9s)
+  ─  checking for LF line-endings in source and make files and shell scripts
+  ─  checking for empty or unneeded directories
+   Removed empty directory ‘sits.starfm/data’
+─  looking to see if a ‘data/datalist’ file should be added
+  ─  building ‘sits.starfm_0.0.0.9010.tar.gz’
+     
+[1] "/home/alber/Documents/data/experiments/l8mod-fusion/Rpackage/sits.starfm_0.0.0.9010.tar.gz"
+
+     checking for file ‘/home/alber/Documents/data/experiments/l8mod-fusion/Rpackage/sits.starfm/DESCRIPTION’ ...  ✔  checking for file ‘/home/alber/Documents/data/experiments/l8mod-fusion/Rpackage/sits.starfm/DESCRIPTION’
+  ─  preparing ‘sits.starfm’:
+     checking DESCRIPTION meta-information ...  ✔  checking DESCRIPTION meta-information
+  ─  checking for LF line-endings in source and make files and shell scripts
+  ─  checking for empty or unneeded directories
+   Removed empty directory ‘sits.starfm/data’
+─  looking to see if a ‘data/datalist’ file should be added
+  ─  building ‘sits.starfm_0.0.0.9010.tar.gz’
+     
+Running /usr/lib/R/bin/R CMD INSTALL \
+  /tmp/Rtmpeu40ip/sits.starfm_0.0.0.9010.tar.gz --install-tests 
+* installing to library ‘/home/alber/Rpackages’
+* installing *source* package ‘sits.starfm’ ...
+** R
+** inst
+** tests
+** byte-compile and prepare package for lazy loading
+** help
+*** installing help indices
+*** copying figures
+** building package indices
+** installing vignettes
+** testing if installed package can be loaded
+* DONE (sits.starfm)
+     checking for file ‘/home/alber/Documents/data/experiments/l8mod-fusion/Rpackage/sits.starfm/DESCRIPTION’ ...  ✔  checking for file ‘/home/alber/Documents/data/experiments/l8mod-fusion/Rpackage/sits.starfm/DESCRIPTION’
+  ─  preparing ‘sits.starfm’:
+     checking DESCRIPTION meta-information ...  ✔  checking DESCRIPTION meta-information
+  ─  installing the package to build vignettes
+     creating vignettes ...  ✔  creating vignettes (2.3s)
+  ─  checking for LF line-endings in source and make files and shell scripts
+  ─  checking for empty or unneeded directories
+   Removed empty directory ‘sits.starfm/data’
+  ─  looking to see if a ‘data/datalist’ file should be added
+  ─  building ‘sits.starfm_0.0.0.9010.tar.gz’
+     
+[1] "/home/alber/Documents/data/experiments/l8mod-fusion/Rpackage/sits.starfm_0.0.0.9010.tar.gz"
+
+     checking for file ‘/home/alber/Documents/data/experiments/l8mod-fusion/Rpackage/sits.starfm/DESCRIPTION’ ...  ✔  checking for file ‘/home/alber/Documents/data/experiments/l8mod-fusion/Rpackage/sits.starfm/DESCRIPTION’
+  ─  preparing ‘sits.starfm’:
+     checking DESCRIPTION meta-information ...  ✔  checking DESCRIPTION meta-information
+  ─  checking for LF line-endings in source and make files and shell scripts
+  ─  checking for empty or unneeded directories
+   Removed empty directory ‘sits.starfm/data’
+─  looking to see if a ‘data/datalist’ file should be added
+  ─  building ‘sits.starfm_0.0.0.9010.tar.gz’
+     
+Running /usr/lib/R/bin/R CMD INSTALL \
+  /tmp/Rtmpkp8I1W/sits.starfm_0.0.0.9010.tar.gz --install-tests 
+* installing to library ‘/home/alber/Rpackages’
+* installing *source* package ‘sits.starfm’ ...
+** R
+** inst
+** tests
+** byte-compile and prepare package for lazy loading
+** help
+*** installing help indices
+*** copying figures
+** building package indices
+** installing vignettes
+** testing if installed package can be loaded
+* DONE (sits.starfm)
+     checking for file ‘/home/alber/Documents/data/experiments/l8mod-fusion/Rpackage/sits.starfm/DESCRIPTION’ ...  ✔  checking for file ‘/home/alber/Documents/data/experiments/l8mod-fusion/Rpackage/sits.starfm/DESCRIPTION’
+  ─  preparing ‘sits.starfm’:
+     checking DESCRIPTION meta-information ...  ✔  checking DESCRIPTION meta-information
+  ─  installing the package to build vignettes
+     creating vignettes ...  ✔  creating vignettes (1.9s)
+  ─  checking for LF line-endings in source and make files and shell scripts
+  ─  checking for empty or unneeded directories
+   Removed empty directory ‘sits.starfm/data’
+  ─  looking to see if a ‘data/datalist’ file should be added
+  ─  building ‘sits.starfm_0.0.0.9010.tar.gz’
+     
+[1] "/home/alber/Documents/data/experiments/l8mod-fusion/Rpackage/sits.starfm_0.0.0.9010.tar.gz"
+
+     checking for file ‘/home/alber/Documents/data/experiments/l8mod-fusion/Rpackage/sits.starfm/DESCRIPTION’ ...  ✔  checking for file ‘/home/alber/Documents/data/experiments/l8mod-fusion/Rpackage/sits.starfm/DESCRIPTION’
+  ─  preparing ‘sits.starfm’:
+     checking DESCRIPTION meta-information ...  ✔  checking DESCRIPTION meta-information
+  ─  checking for LF line-endings in source and make files and shell scripts
+  ─  checking for empty or unneeded directories
+   Removed empty directory ‘sits.starfm/data’
+─  looking to see if a ‘data/datalist’ file should be added
+  ─  building ‘sits.starfm_0.0.0.9010.tar.gz’
+     
+Running /usr/lib/R/bin/R CMD INSTALL \
+  /tmp/Rtmp9EJQmq/sits.starfm_0.0.0.9010.tar.gz --install-tests 
+* installing to library ‘/home/alber/Rpackages’
+* installing *source* package ‘sits.starfm’ ...
+** R
+** inst
+** tests
+** byte-compile and prepare package for lazy loading
+** help
+*** installing help indices
+*** copying figures
+** building package indices
+** installing vignettes
+** testing if installed package can be loaded
+* DONE (sits.starfm)
