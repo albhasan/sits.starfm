@@ -1,6 +1,6 @@
 Package: sits.starfm
 Title: Use the StarFM Fusion Model on Landsat 8 Images
-Version: 0.0.0.9011
+Version: 0.0.0.9012
 Authors@R: 
     person(given = "Alber",
            family = "Sanchez",
@@ -14,11 +14,9 @@ Imports:
     dplyr,
     ensurer,
     gtools,
-    knitr,
     log4r,
     lubridate,
     magrittr,
-    methods,
     purrr,
     raster,
     sf,
@@ -33,7 +31,9 @@ SystemRequirements:
 Suggests: 
     devtools,
     rmarkdown,
-    testthat
+    testthat,
+    knitr, 
+    methods
 VignetteBuilder: knitr
 RoxygenNote: 6.1.1
 Depends: R (>= 3.5)
