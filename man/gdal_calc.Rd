@@ -7,7 +7,8 @@
 gdal_calc(input_files, out_filename = NULL, expression,
   band_number = NULL, dstnodata = NULL, data_type = NULL,
   out_format = NULL, creation_option = NULL, all_bands = NULL,
-  overwrite = FALSE, verbose = FALSE, quiet = FALSE)
+  overwrite = FALSE, verbose = FALSE, quiet = FALSE,
+  dry_run = FALSE)
 }
 \arguments{
 \item{input_files}{A character. Paths to the image files.}
@@ -41,6 +42,8 @@ e.g. c('NAME1=VALUE1', 'NAME2=VALUE2')}
 The default is FALSE.}
 
 \item{quiet}{A length-one logical. The default is FALSE.}
+
+\item{dry_run}{A length-one logical. The default is FALSE.}
 }
 \value{
 out_filename A length-one character.

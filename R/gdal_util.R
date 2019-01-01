@@ -35,13 +35,14 @@
 #' @param verbose               A length-one logical. Generate a verbose output.
 #' The default is FALSE.
 #' @param quiet                 A length-one logical. The default is FALSE.
+#' @param dry_run               A length-one logical. The default is FALSE.
 #' @return out_filename A length-one character.
 #' @export
 gdal_calc <- function(input_files, out_filename = NULL, expression,
                       band_number = NULL, dstnodata = NULL, data_type = NULL,
                       out_format = NULL, creation_option = NULL,
                       all_bands = NULL, overwrite = FALSE, verbose = FALSE,
-                      quiet = FALSE) {
+                      quiet = FALSE, dry_run = FALSE) {
     input_files <- .validate_input_files(input_files)
     params <- paste0("--calc=\"", expression, "\"")
     if (is.null(out_filename))
@@ -71,7 +72,7 @@ gdal_calc <- function(input_files, out_filename = NULL, expression,
     if (quiet)
         params <- append(params, "--quiet")
 
-    error <- call_os(command = "gdal_calc.py", args = params)
+    error <- call_os(command = "gdal_calc.py", args = params, dry_run = dry_run)
     if (error) {
         warning("Failed call to gdal_calc")
         return(NA_character_)
@@ -100,13 +101,14 @@ gdal_calc <- function(input_files, out_filename = NULL, expression,
 #' @param a_nodata  A length-one numeric.
 #' @param init      A numeric.
 #' @param createonly A length-one logical. The default is FALSE.
+#' @param dry_run               A length-one logical. The default is FALSE.
 #' @return          A length-one character. out_filename.
 #' @export
 gdal_merge <- function(input_files, out_filename = NULL, of = NULL,
                        creation_option = NULL, ot = NULL, ps = NULL,
                        tap = FALSE, ul_lr = NULL, v = FALSE, separate = FALSE,
                        pct = FALSE, nodata_value = NULL, a_nodata = NULL,
-                       init = NULL, createonly = FALSE){
+                       init = NULL, createonly = FALSE, dry_run = FALSE){
     params <- character()
     if (!is.null(of))
         params <- append(params, paste("-of", of))
@@ -140,7 +142,7 @@ gdal_merge <- function(input_files, out_filename = NULL, of = NULL,
         out_filename <- file.path(getwd(), "out.tif")
     }
     params <- append(paste("-o", out_filename), params)
-    error <- call_os(command = "gdal_merge.py", args = params)
+    error <- call_os(command = "gdal_merge.py", args = params, dry_run = dry_run)
     if (error) {
         warning("Failed call to gdal_merge")
         return(NA_character_)

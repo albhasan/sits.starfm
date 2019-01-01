@@ -8,7 +8,7 @@ gdal_merge(input_files, out_filename = NULL, of = NULL,
   creation_option = NULL, ot = NULL, ps = NULL, tap = FALSE,
   ul_lr = NULL, v = FALSE, separate = FALSE, pct = FALSE,
   nodata_value = NULL, a_nodata = NULL, init = NULL,
-  createonly = FALSE)
+  createonly = FALSE, dry_run = FALSE)
 }
 \arguments{
 \item{input_files}{A character. Paths to the image files.}
@@ -41,6 +41,8 @@ c('NAME1=VALUE1', 'NAME2=VALUE2').}
 \item{init}{A numeric.}
 
 \item{createonly}{A length-one logical. The default is FALSE.}
+
+\item{dry_run}{A length-one logical. The default is FALSE.}
 }
 \value{
 A length-one character. out_filename.

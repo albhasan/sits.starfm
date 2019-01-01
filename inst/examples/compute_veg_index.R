@@ -17,11 +17,30 @@ options(error = dump_and_quit)
 library(tidyverse)
 library(devtools)
 setwd("/home/alber/Documents/data/experiments/l8mod-fusion/Rpackage/sits.starfm")
-devtools::build()
-devtools::install()
+devtools::load_all()
+
 
 library(sits.starfm)
-vi_bricks <- compute_vi(brick_path = "/home/alber/shared/brick",
-                        brick_pattern = "^LC8SR-MOD13Q1-STARFM_.*[.]tif$",
-                        vi_index = "ndvi")
-print(vi_bricks)
+
+brick_type <- "interpolated"
+#brick_type <- "starfm"
+
+
+vi_index <- "ndvi"
+
+if (brick_type == "starfm") {
+    brick_path <- "/home/alber/shared/brick"
+    brick_pattern <- "^LC8SR-MOD13Q1-STARFM_.*[.]tif$"
+}else if (brick_type == "interpolated") {
+    brick_path = "/home/alber/shared/brick_interp"
+    brick_pattern = "^LC8SR-MOD13Q1-MYD13Q1_.*[.]tif$"
+}else{
+    stop("Unknown brick")
+}
+
+vi_bricks <- compute_vi(brick_path = brick_path,
+                        brick_pattern = brick_pattern,
+                        vi_index = vi_index)
+print(paste(vi_bricks, collapse = " "))
+
+

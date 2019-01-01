@@ -1,6 +1,6 @@
 Package: sits.starfm
 Title: Use the StarFM Fusion Model on Landsat 8 Images
-Version: 0.0.0.9010
+Version: 0.0.0.9011
 Authors@R: 
     person(given = "Alber",
            family = "Sanchez",
@@ -13,6 +13,7 @@ LazyData: true
 Imports:
     dplyr,
     ensurer,
+    gtools,
     knitr,
     log4r,
     lubridate,

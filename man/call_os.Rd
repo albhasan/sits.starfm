@@ -4,7 +4,7 @@
 \alias{call_os}
 \title{Call the operating system.}
 \usage{
-call_os(command, args, stdout = "", stderr = "")
+call_os(command, args, stdout = "", stderr = "", dry_run = FALSE)
 }
 \arguments{
 \item{command}{A length-one character. The command to call.}
@@ -14,6 +14,8 @@ call_os(command, args, stdout = "", stderr = "")
 \item{stdout}{A length-one character.}
 
 \item{stderr}{A length-one character.}
+
+\item{dry_run}{A length-one logical. The default is FALSE}
 }
 \value{
 A character

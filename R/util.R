@@ -98,11 +98,13 @@ build_brick <- function(landsat_path, modis_path, scene_shp, tile_shp,
         starfm_dir %>% dir.create()
 
     log4r::info(logger, "Assembling bricks' data...")
-    brick_tb <- suppressWarnings(build_brick_tibble(landsat_path = landsat_path,
-                                                    modis_path = modis_path, scene_shp = scene_shp, tile_shp = tile_shp,
-                                                    scenes = brick_scene, from = paste(brick_year - 1, "08-01", sep = "-"),
-                                                    to = paste(brick_year, "09-30", sep = "-"), max_ts_hole = 1,
-                                                    min_miss_ratio = 0.95))
+    brick_tb <- suppressWarnings(
+        build_brick_tibble(landsat_path = landsat_path,
+                           modis_path = modis_path, scene_shp = scene_shp, tile_shp = tile_shp,
+                           scenes = brick_scene, from = paste(brick_year - 1, "08-01", sep = "-"),
+                           to = paste(brick_year, "09-30", sep = "-"), max_ts_hole = 1,
+                           min_miss_ratio = 0.95)
+    )
 
     log4r::info(logger, "Get brick's images...")
     brick_imgs <- brick_tb %>%
@@ -166,7 +168,7 @@ build_brick <- function(landsat_path, modis_path, scene_shp, tile_shp,
         }
         img1 <- img1 %>% dplyr::bind_rows()
 
-        # TODO: Is the mean representative of the MODIS coverage of a Landsat image?
+        # NOTE: Is the mean representative of the MODIS coverage of a Landsat image?
         mod_cloud_cover <- img0 %>% dplyr::pull(tile) %>% dplyr::bind_rows() %>%
             dplyr::pull(cloud_cov) %>% mean()
 
@@ -199,6 +201,7 @@ build_brick <- function(landsat_path, modis_path, scene_shp, tile_shp,
             log4r::debug(logger, paste("StarFM file name: ", out_filename))
             log4r::info(logger, sprintf("    Row %s - Running StarFM...", row_n))
 
+            # here ---
             starfm_res <- run_starFM(img0_f = img0, img1_f = img1, band = band,
                                      out_filename = out_filename,
                                      tmp_dir = tmp_dir)
@@ -351,10 +354,10 @@ build_brick_tibble <- function(landsat_path, modis_path, scene_shp, tile_shp,
                                                  from = from, to = to)
     l8_img$tile <- purrr::map2(l8_img$tile, l8_img$img_date, match_tile_date,
                                img_tb = mod_img, untie = 0.001)
-    mod_imgs <- l8_img %>% dplyr::pull(tile) %>% dplyr::bind_rows() %>%
-        dplyr::pull(sat_image)
-    if (length(mod_imgs) != length(unique(mod_imgs)))
-        warning("Duplicated MODIS were related to LANDSAT images")
+    #mod_imgs <- l8_img %>% dplyr::pull(tile) %>% dplyr::bind_rows() %>%
+    #    dplyr::pull(sat_image)
+    #if (length(mod_imgs) != length(unique(mod_imgs)))
+    #    warning("Duplicated MODIS were related to LANDSAT images")
     return(l8_img)
 }
 
@@ -494,8 +497,13 @@ build_ts <- function(img_tb, prodes_year_start = "-08-01", image_step = 16) {
 #' @param args    A character. The command's parameters.
 #' @param stdout  A length-one character.
 #' @param stderr  A length-one character.
+#' @param dry_run A length-one logical. The default is FALSE
 #' @return A character
-call_os <- function(command, args, stdout = "", stderr = "") {
+call_os <- function(command, args, stdout = "", stderr = "", dry_run = FALSE) {
+    if (dry_run) {
+        print(c(command, sapply(args, paste, collapse = " ")))
+        return(0)
+    }
     system2(command = command, args = args, stdout = stdout, stderr = stderr)
 }
 
@@ -512,6 +520,61 @@ call_os <- function(command, args, stdout = "", stderr = "") {
 compute_vi <- function(brick_path, brick_pattern = "^brick_.*[.]tif$",
                        vi_index = c("ndvi", "savi")){
 
+    # Get the path to a file from a brick tibble
+    # @param brick_tb A tibble of brick metadata. It must contain the fields c("files", "band", "file_path")
+    # @param x        A length-one numeric. A row index in brick_tb
+    # @param aband    A length-one character. The name of a band
+    # @return         A character. A path to a file
+    get_path <- function(brick_tb, x, aband){
+        brick_tb %>% dplyr::slice(x) %>% dplyr::pull(files) %>%
+            dplyr::bind_rows() %>% dplyr::filter(band == aband) %>%
+            dplyr::pull(file_path) %>% dplyr::first() %>% return()
+    }
+
+    # Get the number of bands in a file
+    # @param filepath A length-one character. A path to a file
+    # @return A length-one numeric. The number of bands
+    get_number_of_bands <- function(filepath) {
+        system2("gdalinfo", filepath, stdout = TRUE) %>%
+            stringr::str_subset("Band") %>% dplyr::last() %>%
+            stringr::str_split(" ") %>% unlist() %>% dplyr::nth(2) %>%
+            as.numeric() %>% return()
+    }
+
+    # Compute a vegetation index from the input bricks
+    # NOTE: this is a workaround regarding gdal_calc inability to process bricks
+    # @param brick_A     A length-one character. Path to a brick file
+    # @param brick_B     A length-one character. Path to a brick file
+    # @param vi_exp      A length-one character. A gdal_calc vaid expression
+    # @param vi_filename A length-one character. Path to the resulting file
+    # @return vi_filename
+    compute_brick_vi <- function(brick_A, brick_B, vi_exp, vi_filename){
+        n_bands <- get_number_of_bands(brick_A)
+        if (n_bands != get_number_of_bands(brick_B)) {
+            warning("Missmatching number of bands!")
+            return(NA)
+        }
+        # export brick's bands
+        vi_tmp <- lapply(1:n_bands, function(b_number){
+            fname <- vi_filename %>%
+                stringr::str_replace(".tif", paste0("_tmp_", b_number, ".tif"))
+            gdal_calc(input_files = c(brick_A, brick_B),
+                      out_filename = fname,
+                      expression = vi_exp,
+                      band_number = rep(b_number, 2),
+                      data_type = "Int16",
+                      dry_run = FALSE)
+        })
+        # stack the bands
+        vi_tmp %>% unlist() %>%
+            gdal_merge(out_filename = vi_filename, separate = TRUE,
+                       of = "GTiff", creation_option = "BIGTIFF=YES",
+                       init = -3000, a_nodata = -3000)
+        # cleaning
+        file.remove(unlist(vi_tmp))
+        return(vi_filename)
+    }
+
     brick_tb <- brick_path %>% list.files(pattern = brick_pattern, full.names = TRUE) %>%
         dplyr::as_tibble() %>% dplyr::rename(file_path = value) %>%
         dplyr::mutate(scene = stringr::str_extract(basename(file_path), "[0-9]{6}"),
@@ -519,85 +582,27 @@ compute_vi <- function(brick_path, brick_pattern = "^brick_.*[.]tif$",
                       band = get_landsat_band(file_path, band_name = "short_name")) %>%
         tidyr::nest(file_path, band, .key = "files")
 
-    # Get the path to a file from a brick tibble
-    get_path <- function(brick_tb, x, aband){
-        brick_tb %>% dplyr::slice(x) %>% dplyr::pull(files) %>%
-            dplyr::bind_rows() %>% dplyr::filter(band == aband) %>%
-            dplyr::pull(file_path) %>% dplyr::first() %>% return()
-    }
-
-    # Compute a vegetation index and build the brick
-    apply_vi <- function(n_bands, vi_exp, x, vi_filename){
-        # compute the VI (one band at the time)
-        # NOTE: gdal_calc.py could have a way to compute all bands at once
-        vi_tmp <- lapply(1:n_bands, function(x){
-            fname <- vi_filename %>%
-                stringr::str_replace(".tif", paste0("_tmp_", x, ".tif"))
-            gdal_calc(input_files = c(b5, b4),
-                      out_filename = fname,
-                      expression = vi_exp,
-                      band_number = rep(x,2))
-        })
-        # stack the bands
-        vi_tmp %>% unlist() %>%
-            gdal_merge(out_filename = vi_filename, separate = TRUE,
-                       of = "GTiff", creation_option = "BIGTIFF=YES",
-                       init = -3000, a_nodata = -3000)
-        # clening
-        file.remove(unlist(vi_tmp))
-        return(vi_filename)
-    }
-
-
-
-
-
-    #vi_paths <- lapply(1:nrow(brick_tb),
-    vi_paths <- ""
-    for (x in 1:nrow(brick_tb)) {
-        print(x)
-        test <- function(x, brick_tb) {
-            b2 <- brick_tb %>% get_path(x, "blue")
-            b4 <- brick_tb %>% get_path(x, "red")
-            b5 <- brick_tb %>% get_path(x, "nir")
-            b7 <- brick_tb %>% get_path(x, "swir2")
-            ndvi_filename <- NA
-            savi_filename <- NA
-            #msavi_filename <- NA
-            if (!all(is.na(b5), is.na(b4))) {
-                # NOTE ndvi computation using spreadsheets do not match gdal_cal &
-                # gdal_locationinfo 4000 4000 ----
-                # See compute_veg_index.R
-                n_bands <- system2("gdalinfo", b5, stdout = TRUE) %>%
-                    stringr::str_subset("Band") %>% dplyr::last() %>%
-                    stringr::str_split(" ") %>% unlist() %>% dplyr::nth(2) %>%
-                    as.numeric()
-                if ("ndvi" %in% vi_index) {
-                    ndvi_exp <- "((A.astype(float64) - B.astype(float64)) / (A.astype(float64) + B.astype(float64)) + 0.00001) * 10000"
-                    ndvi_filename <- apply_vi(n_bands = n_bands, vi_exp = ndvi_exp,
-                                              x, vi_filename = stringr::str_replace(b5, "nir", "ndvi"))
-                }
-                if ("savi" %in% vi_index) {
-                    savi_exp <- "((A.astype(float64) - B.astype(float64)) / (A.astype(float64) + B.astype(float64) + 5000.00001)) * 1.5 * 10000"
-                    savi_filename <- apply_vi(n_bands = n_bands, vi_exp = savi_exp, x, vi_filename = stringr::str_replace(b5, "nir", "savi"))
-                }
-
-                # TODO: msavi is nor working ----
-                # gdal_calc(input_files = c(b5, b4),
-                #           out_filename = msavi_filename,
-                #           expression = "((2 * A.astype(float64)/10000 + 1 - sqrt((2 * A.astype(float64)/10000 + 1) ^2 - 8 * (A.astype(float64) - B.astype(float64))/10000)) / 2) * 10000 ",
-                #           all_bands = c("A", "B"))
-            } else {
-                warning("No vegetation indexes was computed because of missing bricks.")
+    #ndvi_exp <- "((A.astype(float64) - B.astype(float64)) / (A.astype(float64) + B.astype(float64)) + 0.00001) * 10000"
+    ndvi_exp <- "numpy.where(A != -3000, numpy.divide(A.astype(float64) - B.astype(float64) , A.astype(float64) + B.astype(float64), out = numpy.full_like(A.astype(float64), -3000), where = A != -B) * 10000, -3000)"
+    savi_exp <- "((A.astype(float64) - B.astype(float64)) / (A.astype(float64) + B.astype(float64) + 5000.00001)) * 1.5 * 10000"
+    vi_paths <- lapply(1:nrow(brick_tb), function(b_index){
+        b4 <- brick_tb %>% get_path(b_index, "red")
+        b5 <- brick_tb %>% get_path(b_index, "nir")
+        ndvi_filename <- NA
+        savi_filename <- NA
+        if (all(is.na(b5), is.na(b4))) {
+            warning("No vegetation indexes was computed because of missing bricks.")
+        }else{
+            if ("ndvi" %in% vi_index) {
+                vi_filename <- b4 %>% stringr::str_replace("_red_", "_ndvi_")
+                ndvi_filename <- compute_brick_vi(b5,  b4, ndvi_exp, vi_filename)
+            }else if ("savi" %in% vi_index) {
+                vi_filename <- b4 %>% stringr::str_replace("_red_", "_savi_")
+                savi_filename <- compute_brick_vi(b5, b4, savi_exp, vi_filename)
             }
-            return(c(ndvi = ndvi_filename, savi = savi_filename))
         }
-        vi_paths <- c(vi_paths, test(x, brick_tb))
-    }
-
-    #, brick_tb = brick_tb)
-
-
+        return(c(ndvi = ndvi_filename, savi = savi_filename))
+    })
     return(vi_paths)
 }
 
@@ -885,6 +890,24 @@ get_tile_neighbors <- function(tile) {
 }
 
 
+#' @title Get a time series from a brick.
+#' @author Alber Sanchez, \email{alber.ipia@@inpe.br}
+#' @description Find the tiled images closest to a given date.
+#'
+#' @param brick_path A length-one character. Path to a brick file
+#' @param pix_x      A length-one numeric. A pixel's column index
+#' @param pix_y      A length-one numeric. A pixel's row index
+#' @return           A numeric
+#' @export
+get_brick_ts <- function(brick_path, pix_x, pix_y){
+    cmd <- paste("gdallocationinfo", brick_path, pix_x, pix_y)
+    system(cmd, intern = TRUE) %>%
+        .[gtools::even(seq_along(.))] %>% .[2:length(.)] %>% strsplit(" ") %>%
+        lapply(dplyr::last) %>% unlist() %>% as.numeric() %>%
+        return()
+}
+
+
 #' @title Find the tiled images closest to a given date.
 #' @author Alber Sanchez, \email{alber.ipia@@inpe.br}
 #' @description Find the tiled images closest to a given date.
@@ -1102,8 +1125,8 @@ run_starFM <- function(img0_f, img1_f, band, out_filename = NULL, tmp_dir = NULL
     }
 
     # mosaic, project and cut landsat & modis images
-
-    t1_fine <- t1_fine_neigh %>% c(t1_fine) %>% .[!is.na(.)] %>%
+    t1_fine <- t1_fine_neigh %>% c(t1_fine) %>%
+        ensurer::ensure_that(all(!is.na(.)), err_desc = "Invalid t1_fine images!") %>%
         .call_gadal_warp(
             out_filename =
                 file.path(tmp_dir, paste0(paste("t1_fine", img1_f$scene,
@@ -1118,7 +1141,8 @@ run_starFM <- function(img0_f, img1_f, band, out_filename = NULL, tmp_dir = NULL
                                                  sep = "_"),
                                            param[["fileext"]])), param)
     if (!is.na(t0_fine))
-        t0_fine <- t0_fine_neigh %>% c(t0_fine) %>% .[!is.na(.)] %>%
+        t0_fine <- t0_fine_neigh %>% c(t0_fine) %>%
+        ensurer::ensure_that(all(!is.na(.)), err_desc = "Invalid t0_fine images!") %>%
         .call_gadal_warp(
             out_filename =
                 file.path(tmp_dir, paste0(paste("t0_fine", img1_f$scene,

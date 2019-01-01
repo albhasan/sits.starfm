@@ -8,10 +8,12 @@
 
 library(devtools)
 setwd("/home/alber/Documents/data/experiments/l8mod-fusion/Rpackage/sits.starfm")
-devtools::build()
-devtools::install()
+devtools::load_all()
 
-library(sits.starfm)
+#devtools::build()
+#devtools::install()
+#library(sits.starfm)
+
 # library(tidyverse)
 # library(log4r)
 # library(knitr)
