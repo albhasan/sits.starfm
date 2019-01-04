@@ -30,5 +30,5 @@ vignettes/*.pdf
 rsconnect/
 .Rproj.user
 # logs
-/*.log
-/*.swp
+*.log
+*.swp
