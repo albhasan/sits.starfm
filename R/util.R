@@ -47,7 +47,7 @@ add_missing_dates <- function(x, step, prodes_start) {
 }
 
 
-#' @title Build a SITS brick using a fusion odel (StarFM) to finnin the gaps
+#' @title Build a SITS brick using a fusion odel (StarFM) to fill in the cloud gaps
 #' @author Alber Sanchez, \email{alber.ipia@@inpe.br}
 #' @description Build a SITS brick using a fusion odel (StarFM) to finnin the gaps.
 #'
@@ -373,6 +373,7 @@ build_brick_tibble <- function(landsat_path, modis_path, scene_shp, tile_shp,
 #' @param prodes_year_start A length-one character. The start month and date of
 #' the PRODES year. The default is "-08-01"
 #' @return A tibble
+#' @export
 build_landsat_tibble <- function(img_path, pattern = NULL, from = NULL,
                                  to = NULL, prodes_year_start = "-08-01") {
     l8_files <- img_path %>% list.files(pattern = pattern, full.names = TRUE,
@@ -424,6 +425,7 @@ build_landsat_tibble <- function(img_path, pattern = NULL, from = NULL,
 #' @param prodes_year_start A length-one character. The start month and date of
 #' the PRODES year. The default is "-08-01"
 #' @return A tibble
+#' @export
 build_modis_tibble <- function(img_path, pattern, from = NULL, to = NULL,
                                prodes_year_start = "-08-01") {
     mod_img <- img_path %>%
