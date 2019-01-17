@@ -1,0 +1,14 @@
+ENVI ASCII Plot File
+Column 1: X Axis
+Column 2: OLI Global Substrate~~2
+Column 3: OLI Global Vegetation~~3
+Column 4: OLI Global Dark~~4
+  0.482600  0.217556  0.107935  0.085274
+  0.561300  0.336629  0.101411  0.048318
+  0.654600  0.542132  0.066796  0.026065
+  0.864600  0.698451  0.639724  0.010515
+  1.609000  0.836586  0.219278  0.002342
+  2.201000  0.741504  0.102166  0.001322
+
+# source: https://doi.org/10.1016/j.rse.2017.01.033
+

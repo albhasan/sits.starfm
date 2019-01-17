@@ -1,0 +1,14 @@
+ENVI ASCII Plot File
+Column 1: X Axis
+Column 2: ETM+ Global Substrate~~2
+Column 3: ETM+ Global Vegetation~~3
+Column 4: ETM+ Global Dark~~4
+  0.483000  0.218413  0.100880  0.083704
+  0.560000  0.344440  0.098638  0.047546
+  0.662000  0.535987  0.067241  0.023937
+  0.835000  0.669174  0.585458  0.010864
+  1.648000  0.754645  0.208614  0.003250
+  2.206000  0.671638  0.088058  0.002208
+
+# source: https://doi.org/10.1016/j.rse.2017.01.033
+
