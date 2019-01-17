@@ -1,5 +1,10 @@
+# create the data for the package
+
 # Specifications Landsat 8 surface reflectance - Table 7.1 pag 21 LaSRC product guide
 # Short names adapted from "The Spectral Response of the Landsat-8 Operational Land Imager" Table 1, page 10233
+
+library(dplyr)
+
 SPECS_L8_SR <- tibble::tibble(
     band_designation = c("sr_band1", "sr_band2", "sr_band3", "sr_band4",
                          "sr_band5", "sr_band6", "sr_band7", "pixel_qa",
@@ -76,4 +81,24 @@ SPECS_MOD13Q1 <- tibble::tibble(
     l8_sr_designation = c(NA, NA, NA, "sr_band4", "sr_band5", "sr_band2",
                           "sr_band7", NA, NA, NA, NA, NA))
 
-usethis::use_data(SPECS_L8_SR, SPECS_MOD13Q1, internal = TRUE, overwrite = TRUE)
+c_names <- c("x_axis", "substrate", "vegetation", "dark")
+
+END_MEMBERS_LANDSAT_7 <- c(0.483000, 0.218413, 0.100880, 0.083704,
+                           0.560000, 0.344440, 0.098638, 0.047546,
+                           0.662000, 0.535987, 0.067241, 0.023937,
+                           0.835000, 0.669174, 0.585458, 0.010864,
+                           1.648000, 0.754645, 0.208614, 0.003250,
+                           2.206000, 0.671638, 0.088058, 0.002208) %>%
+    matrix(ncol = 4, byrow = TRUE, dimnames = list(NULL, c_names)) %>% dplyr::as_tibble()
+
+END_MEMBERS_LANDSAT_8 <- c(0.482600, 0.217556, 0.107935, 0.085274,
+                           0.561300, 0.336629, 0.101411, 0.048318,
+                           0.654600, 0.542132, 0.066796, 0.026065,
+                           0.864600, 0.698451, 0.639724, 0.010515,
+                           1.609000, 0.836586, 0.219278, 0.002342,
+                           2.201000, 0.741504, 0.102166, 0.001322) %>% 
+    matrix(ncol = 4, byrow = TRUE, dimnames = list(NULL, c_names)) %>% dplyr::as_tibble()
+
+usethis::use_data(END_MEMBERS_LANDSAT_7, END_MEMBERS_LANDSAT_8, SPECS_L8_SR, 
+    SPECS_MOD13Q1, internal = TRUE, overwrite = TRUE)
+
