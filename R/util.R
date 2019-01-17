@@ -47,7 +47,7 @@ add_missing_dates <- function(x, step, prodes_start) {
 }
 
 
-#' @title Build a SITS brick using a fusion odel (StarFM) to fill in the cloud gaps
+#' @title Build a SITS brick using a fusion model (StarFM) to fill in the cloud gaps
 #' @author Alber Sanchez, \email{alber.ipia@@inpe.br}
 #' @description Build a SITS brick using a fusion odel (StarFM) to finnin the gaps.
 #'
@@ -61,14 +61,15 @@ add_missing_dates <- function(x, step, prodes_start) {
 #' @param brick_path   A length-one character. A path to store the resulting bricks.
 #' @param cloud_threshold A length-one numeric. The approximated proportion of clouds in the brick.
 #' @param img_per_year A length-one numeric. The number of images in a brick-year. The default is 23.
+#' @param n_best_img   A length-one numeric. Use only only this number of images. Best means less cloudy.
 #' @param image_step   A length-one numeric. The number of days between images.
 #' @param temp_dir     A length-one character. A path to a folder to store temporal files.
 #' @return             A tibble
 #' @export
 build_brick <- function(landsat_path, modis_path, scene_shp, tile_shp,
                         brick_scene, brick_year, brick_bands,
-                        brick_path, cloud_threshold, img_per_year = 23,
-                        image_step = 16, temp_dir = NULL) {
+                        brick_path, cloud_threshold, n_best_img = 23,
+                        img_per_year = 23, image_step = 16, temp_dir = NULL) {
 
     input_vec <- c(landsat_path = landsat_path,
                    modis_path = modis_path,
@@ -79,6 +80,7 @@ build_brick <- function(landsat_path, modis_path, scene_shp, tile_shp,
                    brick_bands = paste(brick_bands, collapse = ","),
                    brick_path = brick_path,
                    cloud_threshold = cloud_threshold,
+                   n_best_img = n_best_img,
                    img_per_year = img_per_year,
                    image_step = image_step,
                    temp_dir = temp_dir)
@@ -201,7 +203,6 @@ build_brick <- function(landsat_path, modis_path, scene_shp, tile_shp,
             log4r::debug(logger, paste("StarFM file name: ", out_filename))
             log4r::info(logger, sprintf("    Row %s - Running StarFM...", row_n))
 
-            # here ---
             starfm_res <- run_starFM(img0_f = img0, img1_f = img1, band = band,
                                      out_filename = out_filename,
                                      tmp_dir = tmp_dir)
@@ -358,6 +359,76 @@ build_brick_tibble <- function(landsat_path, modis_path, scene_shp, tile_shp,
     #    dplyr::pull(sat_image)
     #if (length(mod_imgs) != length(unique(mod_imgs)))
     #    warning("Duplicated MODIS were related to LANDSAT images")
+    return(l8_img)
+}
+
+
+#' @title Build a tibble with the data required to create bricks.
+#' @author Alber Sanchez, \email{alber.ipia@@inpe.br}
+#' @description Build a tibble with the data required to create bricks.
+#'
+#' @param landsat_path A length-one character. Path to a directory of images.
+#' @param modis_path   A length-one character. Path to a directory of images.
+#' @param scene_shp    A length-one character. Path to a polygon shapefile of
+#' Landsat scene borders.
+#' @param tile_shp     A length-one character. Path to a polygon shapefile of
+#' MODIS tile borders.
+#' @param scenes       A character. Constrain to these scenes (e.g. 233067)
+#' @param from         A character. Constrain to this starting date.
+#' @param to           A character. Constrain to this ending date.
+#' @param add_neighbors A logical. Should neighbor images be considered?
+#' @return             A tibble.
+#' @export
+build_brick_tibble2 <- function(landsat_path, modis_path, scene_shp, tile_shp,
+                                scenes, from, to, add_neighbors){
+
+    if (!all(dir.exists(landsat_path), dir.exists(modis_path))) {
+        stop("Directory not found!")
+    }
+    if (!all(file.exists(scene_shp), file.exists(tile_shp))) {
+        stop("File not found!")
+    }
+
+    # Get files into a tibble 
+    pattern_landsat <- NULL
+    if (!is.null(scenes) && is.vector(scenes) && length(scenes) > 0) {
+        scene_neigh <- scenes
+        if (add_neighbors) {
+            scene_neigh <- scenes %>% get_tile_neighbors() %>% c(scenes) %>%
+                unique() %>% .[!is.na(.)]
+        }
+        if (length(scene_neigh) > 1) {
+            scene_neigh <- paste0('(', paste(scene_neigh, collapse = '|'), ')')
+        }
+        pattern_landsat <- stringr::str_c("^LC08_L1[TG][PTS]_", scene_neigh,
+                                          ".*(tif|_MTL\\.txt)$")
+    }
+    l8_img <- landsat_path %>% build_landsat_tibble(pattern = pattern_landsat,
+                                                    from = from, to = to)
+
+    # match L8 scenes to MOD tiles (in space)
+    l8mod_sp <- match_tiles2scenes(scene_path = scene_shp,
+                                   tile_path = tile_shp,
+                                   scenes = unique(dplyr::pull(l8_img, tile))) %>%
+                    dplyr::mutate(tile = purrr::map(tile, function(x) {dplyr::pull(x, tile)}))
+    l8_img <- l8_img %>% dplyr::rename(scene = tile) %>%
+        dplyr::inner_join(l8mod_sp, by = 'scene')
+
+    # match L8 scenes to MOD tiles (in time)
+    tiles <- l8_img %>% dplyr::pull(tile) %>% unlist() %>% unique()
+    if (length(tiles) == 0) {
+        return(NA)
+    }else if (length(tiles) > 1) {
+        tiles <- paste0('(', paste(tiles, collapse = '|'), ')')
+    }
+    pattern_mod <- stringr::str_c('^MOD13Q1\\.A201[2-8][0-9]{3}\\.', tiles,
+                                  '.*hdf$')
+    mod_img <- modis_path %>% build_modis_tibble(pattern = pattern_mod,
+                                                 from = from, to = to)
+    l8_img <- l8_img %>% dplyr::mutate(tile = purrr::map2(l8_img$tile, 
+                                           l8_img$img_date, match_tile_date,
+                                           img_tb = mod_img, untie = 0.001))
+
     return(l8_img)
 }
 
@@ -578,6 +649,7 @@ compute_vi <- function(brick_path, brick_pattern = "^brick_.*[.]tif$",
     }
 
     brick_tb <- brick_path %>% list.files(pattern = brick_pattern, full.names = TRUE) %>%
+        ensurer::ensure_that(length(.) > 0, err_desc = "No brick files were found!") %>%
         dplyr::as_tibble() %>% dplyr::rename(file_path = value) %>%
         dplyr::mutate(scene = stringr::str_extract(basename(file_path), "[0-9]{6}"),
                       first_date = as.Date(stringr::str_extract(basename(file_path), "[0-9]{4}-[0-9]{2}-[0-9]{2}")),
@@ -623,6 +695,10 @@ fill_clouds <- function(img, tmp_dir = NULL) {
     if (is.null(tmp_dir))
         tmp_dir <- tempdir()
     tmp_base_name <- basename(tempfile(pattern = "", tmpdir = ""))
+
+    if (length(unlist(img$starfm)) == 1 && is.na(unlist(img$starfm))) {
+        return(NA)
+    }
 
     # No image to fill. Return StarFM
     if (is.na(img$sat_image)) {
@@ -777,7 +853,7 @@ get_next_image <- function(brick_imgs, ref_row_number, cloud_threshold = 0.1) {
 
 #' @title Get the Landsat band name from the file path
 #' @author Alber Sanchez, \email{alber.ipia@@inpe.br}
-#' @description Get the full MOD13Q1 name from a landsat file
+#' @description Get the band name from a landsat file
 #'
 #' @param path      A character. Path to a Landsat file.
 #' @param band_name A character. The type of name to retrieve. c("band_designation", "short_name")
@@ -910,6 +986,53 @@ get_brick_ts <- function(brick_path, pix_x, pix_y){
 }
 
 
+#' @title Replace the clouds with a value.
+#' @author Alber Sanchez, \email{alber.ipia@@inpe.br}
+#' @description A Replace the clouds with a value.
+#'
+#' @param img               A one-row tibble with a the fields 'sat_image' and 'files'.
+#' @param bands             A character. The names of the bands to mask. 
+#' @param replacement_value A numeric. The pixel value to fill in the clouds.
+#' @param out_dir           A length-one character. Path to store results.
+#' @param param             A list. A list of GDAL tranformation parameters.
+#' @param tmp_dir           A length-one character. Path to store temporal files.
+#' @return                  A tibble.
+mask_clouds <- function(img, bands, replacement_value, out_dir, param, tmp_dir = tempdir()){
+    pixel_qa <- img %>% dplyr::pull(files) %>% unlist() %>%
+        stringr::str_subset(pattern = "pixel_qa")
+    param <- param %>% append(get_landsat_metadata(pixel_qa[1]))
+
+    # build the cloud mask
+    img_mask <- pixel_qa %>%
+        gdal_calc(
+            out_filename =
+                file.path(tmp_dir, paste0(paste("cloud_mask", img$sat_image, 
+                                       sep = "_"), param[["fileext"]])),
+            expression = "((numpy.bitwise_and(A, 40) != 0) * 1).astype(int16)",
+            dstnodata = param[["dstnodata"]],
+            out_format = param[["out_format"]],
+            creation_option = param[["creation_option"]])
+    img %>% dplyr::pull(files) %>% dplyr::bind_rows() %>%
+        dplyr::mutate(band = get_landsat_band(file_path)) %>% 
+        dplyr::mutate(masked = purrr::map_chr(1:nrow(.), 
+                function(x, file_tb, img_mask, bands){
+                    row_x <- file_tb %>% dplyr::slice(x) %>% 
+                        dplyr::filter(band %in% bands)
+                    if(nrow(row_x) != 1) return(NA_character_)
+                    row_x %>% dplyr::select(file_path) %>% unlist() %>% 
+                        c(img_mask) %>%
+                        gdal_calc(
+                            out_filename = file.path(out_dir,
+                                        paste0(paste(img$sat_image, row_x$band, 
+                                                         sep = "_"),
+                                               param[["fileext"]])),
+                            expression = paste0("(numpy.where(B,",  replacement_value, ", A)).astype(int16)")) %>%
+                        return()
+                }, file_tb = ., img_mask = img_mask, bands = bands)) %>%
+        return()
+}
+
+
 #' @title Find the tiled images closest to a given date.
 #' @author Alber Sanchez, \email{alber.ipia@@inpe.br}
 #' @description Find the tiled images closest to a given date.
@@ -935,7 +1058,7 @@ match_tile_date <- function(img_tb, ref_tiles, ref_date, untie = NULL) {
     subtiles <- img_tb %>% dplyr::filter(tile %in% ref_tiles) %>%
         dplyr::mutate(dist = abs(difftime(ref_date + untie, img_date,
                                           units = "days"))) %>%
-        group_by(tile) %>% dplyr::slice(which.min(dist)) %>% dplyr::ungroup()
+        dplyr::group_by(tile) %>% dplyr::slice(which.min(dist)) %>% dplyr::ungroup()
     if (nrow(subtiles) == 0)
         return(NA)
     return(subtiles)
@@ -1010,6 +1133,46 @@ max_hole <- function(x) {
 }
 
 
+#' @title Pile images into files by band.
+#' @author Alber Sanchez, \email{alber.ipia@@inpe.br}
+#' @description Pile images into files by band.
+#'
+#' @param brick_imgs   A tibble of images. 
+#' @param file_col     Name of the column in brick_imgs with the paths to the images to pile up.
+#' @param brick_bands  A character. Names of the bands.
+#' @param brick_prefix A lengh-one character. Prefix to append to produced file names.
+#' @param out_dir      A character. Path to a directory for storing results.
+#' @return             A tibble of the matching PRODES dates and NA for the
+pile_up <- function(brick_imgs, file_col, brick_bands, brick_prefix, out_dir){
+
+    # helper function to pile up the files of a single band
+    helper_pile_band <- function(i_tb){
+        band_short_name <- SPECS_L8_SR %>% 
+            dplyr::filter(band_designation == unique(i_tb$band)) %>%
+            dplyr::pull(short_name) %>% dplyr::first() %>%
+            stringr::str_replace(" ", "_") %>% tolower()
+        out_fn <- file.path(out_dir,
+                            paste0(paste(brick_prefix, brick_scene,
+                                         first_date, band_short_name,
+                                         "STACK_BRICK", sep = "_"), ".tif"))
+        i_tb %>% dplyr::pull(file_path) %>% unlist() %>%
+            gdal_merge(out_filename = out_fn, separate = TRUE, of = "GTiff",
+                       creation_option = "BIGTIFF=YES", init = -3000,
+                       a_nodata = -3000) %>%
+            tibble::enframe(name = NULL) %>%
+            return()
+    }
+
+    first_date <- brick_imgs %>% dplyr::pull(img_date) %>% unlist() %>% min() 
+    img_tb <- brick_imgs %>% tidyr::unnest(.data[[file_col]]) %>%
+        dplyr::mutate(band = get_landsat_band(.data[["file_path"]])) %>% 
+        dplyr::filter(band %in% brick_bands)
+    img_tb %>% dplyr::group_by(band) %>% 
+        dplyr::do(helper_pile_band(.data)) %>% dplyr::ungroup() %>%
+        return()
+}
+
+
 #' @title Run the StarFM fusion model.
 #' @author Alber Sanchez, \email{alber.ipia@@inpe.br}
 #' @description Run the StarFM fusion model.
@@ -1025,6 +1188,10 @@ max_hole <- function(x) {
 #' and its inputs, t1_fine, t1_coarse, and t0_coarse.
 #' @export
 run_starFM <- function(img0_f, img1_f, band, out_filename = NULL, tmp_dir = NULL) {
+    if(!exists("logger")){
+        logger                 <- log4r::create.logger()
+    }
+
     log4r::debug(logger, sprintf("Starting starfm for %s",
                                  c(img0_f$sat_image, img1_f$sat_image, band,
                                    out_filename, tmp_dir)))
@@ -1106,10 +1273,10 @@ run_starFM <- function(img0_f, img1_f, band, out_filename = NULL, tmp_dir = NULL
 
     # Old Landsat 8 images use 0 as NO_DATA
     # TODO: wrap call to gdallocationinfo
-    pix00 <- call_os(command = "gdallocationinfo",
-                     args = c(t1_fine, "0", "0", "-valonly"), stdout = TRUE)
-    if (as.numeric(pix00) != param[["srcnodata_l8"]])
-        stop("Invalid no data value for Landsat 8 images!")
+    #pix00 <- call_os(command = "gdallocationinfo",
+    #                 args = c(t1_fine, "0", "0", "-valonly"), stdout = TRUE)
+    #if (as.numeric(pix00) != param[["srcnodata_l8"]])
+    #    stop("Invalid no data value for Landsat 8 images!")
 
     # Uncertainty values. Taken from Gao:2017
     # TODO: Move to data?
@@ -1127,8 +1294,8 @@ run_starFM <- function(img0_f, img1_f, band, out_filename = NULL, tmp_dir = NULL
     }
 
     # mosaic, project and cut landsat & modis images
-    t1_fine <- t1_fine_neigh %>% c(t1_fine) %>%
-        ensurer::ensure_that(all(!is.na(.)), err_desc = "Invalid t1_fine images!") %>%
+    t1_fine <- t1_fine_neigh %>% c(t1_fine) %>% .[!is.na(.)] %>%
+        ensurer::ensure_that(length(.) > 0, err_desc = "Invalid t1_fine images!") %>%
         .call_gadal_warp(
             out_filename =
                 file.path(tmp_dir, paste0(paste("t1_fine", img1_f$scene,
@@ -1143,8 +1310,8 @@ run_starFM <- function(img0_f, img1_f, band, out_filename = NULL, tmp_dir = NULL
                                                  sep = "_"),
                                            param[["fileext"]])), param)
     if (!is.na(t0_fine))
-        t0_fine <- t0_fine_neigh %>% c(t0_fine) %>%
-        ensurer::ensure_that(all(!is.na(.)), err_desc = "Invalid t0_fine images!") %>%
+        t0_fine <- t0_fine_neigh %>% c(t0_fine) %>% .[!is.na(.)] %>%
+        ensurer::ensure_that(length(.) > 0, err_desc = "Invalid t0_fine images!") %>%
         .call_gadal_warp(
             out_filename =
                 file.path(tmp_dir, paste0(paste("t0_fine", img1_f$scene,

@@ -1,10 +1,6 @@
 #!/usr/bin/env Rscript
-################################################################################
+
 # FUSE LANDSAT 8 AND MODIS IMAGES
-#------------------------------------------------------------------------------
-# Last update 2018-10-08
-#------------------------------------------------------------------------------
-# devtools::load_all()
 
 library(devtools)
 setwd("/home/alber/Documents/data/experiments/l8mod-fusion/Rpackage/sits.starfm")
