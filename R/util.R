@@ -581,6 +581,52 @@ call_os <- function(command, args, stdout = "", stderr = "", dry_run = FALSE) {
 }
 
 
+#' @title Compute a misture model. 
+#' @author Alber Sanchez, \email{alber.ipia@@inpe.br}
+#' @description Compute vegetation indexes from bricks.
+#'
+#' @param file_paths   A character. Paths to files of a Landsat image.
+#' @param out_dir      A length-one character. Path to store the results. 
+#' @param landsat_sat  A length-one character. The landsat satelite denomination e.g. '8'
+#' @return             A character. Paths to the End member files.
+#' @export
+compute_mixture_model <- function(file_paths, out_dir, landsat_sat = '8'){
+    # get misture model coefficients
+    coef_tb <- END_MEMBERS_LANDSAT_8
+    if (landsat_sat == '7') {
+        coef_tb <- END_MEMBERS_LANDSAT_7
+    }
+
+    # build tibble of parameters
+    model_tb <- file_paths %>% tibble::enframe(name = NULL) %>%
+        dplyr::rename(file_path = value) %>%
+        dplyr::mutate(band = get_landsat_band(file_path)) %>%
+        dplyr::filter(band %in% coef_tb$band) %>%
+        dplyr::right_join(coef_tb, by = "band") %>%
+        dplyr::arrange(band) %>%
+        ensurer::ensure_that(sum(is.na(file_paths)) == 0,
+                             err_desc = "Not enough band files!") %>%
+        ensurer::ensure_that(nrow(.) == nrow(coef_tb), 
+                             err_desc = "File-band missmatch!")
+
+    # build file names for resulting files
+    member_names <- names(coef_tb)[-(1:2)]
+    dummy_name <- unlist(strsplit(basename(model_tb$file_path[1]), '_')) %>% 
+        .[-length(.)]
+    out_fnames <- file.path(out_dir, paste(paste(dummy_name, collapse = "_"),
+                            paste0(member_names, ".tif"), sep = '_'))
+    names(out_fnames) <- member_names
+
+    img_md <- get_landsat_metadata(model_tb$file_path[1])
+    vapply(member_names, function(member){
+        gcalc_exp <- paste(paste(LETTERS[1:nrow(coef_tb)], "*", model_tb[[member]]), collapse = " + ")
+        model_tb$file_path %>% gdal_calc(out_filename = out_fnames[member], 
+            expression = gcalc_exp, dstnodata = img_md$srcnodata_l8)
+    }, character(1)) %>%
+        return()
+}
+
+
 #' @title Compute vegetation indexes from bricks.
 #' @author Alber Sanchez, \email{alber.ipia@@inpe.br}
 #' @description Compute vegetation indexes from bricks.
@@ -1133,6 +1179,34 @@ max_hole <- function(x) {
 }
 
 
+#' @title Get metadata from images' file names.
+#' @author Alber Sanchez, \email{alber.ipia@@inpe.br}
+#' @description Get metadata from images' file names.
+#'
+#' @param file_path A character. Paths to image files.
+#' @return          A list of character. 
+#' @export
+parse_img_name <- function(file_path){
+    if(is.na(file_path) || !is.atomic(file_path) || length(file_path) < 1) 
+        return(NA)
+    if(length(file_path) == 1){
+        file_name <- basename(file_path)
+        if(stringr::str_detect(file_name, pattern = "^L[CTM]0[4-9]_L[0-3][A-Z]{2}_[0-9]{6}_[0-9]{8}_[0-9]{8}_[0-9]{2}_[A-Z]([0-9]|[A-Z])")){
+            # Landsat collection 1
+            res <- unlist(stringr::str_split(file_name, "_"))
+            names(res) <- c("header", "level", "path_row", "acquisition", "processing", "collection", "category")
+            return(res)
+        }else{
+            return(NA)
+        }
+    }else{
+        res <- lapply(file_path, parse_img_name)
+        names(res) <- basename(file_path)
+        return(res)
+    }
+}
+
+
 #' @title Pile images into files by band.
 #' @author Alber Sanchez, \email{alber.ipia@@inpe.br}
 #' @description Pile images into files by band.
@@ -1141,9 +1215,11 @@ max_hole <- function(x) {
 #' @param file_col     Name of the column in brick_imgs with the paths to the images to pile up.
 #' @param brick_bands  A character. Names of the bands.
 #' @param brick_prefix A lengh-one character. Prefix to append to produced file names.
+#' @param brick_scene  A length-one character. The scene or tile of the brick.
 #' @param out_dir      A character. Path to a directory for storing results.
 #' @return             A tibble of the matching PRODES dates and NA for the
-pile_up <- function(brick_imgs, file_col, brick_bands, brick_prefix, out_dir){
+#' @export
+pile_up <- function(brick_imgs, file_col, brick_bands, brick_prefix, brick_scene, out_dir){
 
     # helper function to pile up the files of a single band
     helper_pile_band <- function(i_tb){

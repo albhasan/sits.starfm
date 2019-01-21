@@ -1,9 +1,6 @@
-
 # Build a brick by just piling Landsat 8 images
-
-library(tidyverse)
-
 setwd("/home/alber/Documents/data/experiments/l8mod-fusion/Rpackage/sits.starfm")
+library(tidyverse)
 library(devtools)
 devtools::load_all()
 
@@ -42,12 +39,48 @@ brick_imgs <- build_brick_tibble2(landsat_path, modis_path, scene_shp, tile_shp,
     dplyr::top_n(-as.integer(brick_n_img/2), cloud_cov) %>%
     dplyr::ungroup() %>%
     ensurer::ensure_that(nrow(.) == brick_n_img, err_desc = "Not enough images!")
+
+# build bricks
 brick_files <- brick_imgs %>% pile_up(file_col = "files",
-    brick_bands = brick_bands, out_dir = brick_path, 
-    brick_prefix = brick_prefix)
+                                      brick_bands = brick_bands, 
+                                      brick_prefix = brick_prefix, 
+                                      brick_scene = brick_scene, 
+                                      out_dir = brick_path)
 print(as.data.frame(brick_files))
 
+# build vegetation indexes bricks 
 compute_vi(brick_path, brick_pattern = paste0("^", brick_prefix, "_.*[.]tif$"),
                        vi_index = c("ndvi", "savi")) %>%
     print()
+
+# build spectral mixture bricks
+brick_imgs <- brick_imgs %>% dplyr::mutate(mixture = purrr::map(.$files, 
+    function(x){
+        x %>% unlist() %>% compute_mixture_model(out_dir = brick_path) %>%
+            tibble::enframe(name = "end_member", value = "file_path") %>%
+            tidyr::spread(key = "end_member", value = "file_path") %>%
+            return()
+    }))
+brick_imgs %>% tidyr::unnest(mixture) %>% 
+    dplyr::select(dark, substrate, vegetation) %>%
+    lapply(function(x, out_dir, prefix){
+               img_md <- x[1] %>% parse_img_name()
+               img_date <- format(as.POSIXct(img_md["acquisition"], 
+                                  format = "%Y%m%d"), "%Y-%m-%d")
+               img_band <- unlist(strsplit(img_md[length(img_md)], 
+                                  split = "[.]"))[1] 
+               out_fn <- file.path(out_dir, paste(prefix, img_md["path_row"],
+                                   img_date, img_band, "STACK_BRICK.tif", sep = '_'))
+               x %>% gdal_merge(out_filename = out_fn, separate = TRUE, 
+                                of = "GTiff", creation_option = "BIGTIFF=YES",
+                                init = -3000, a_nodata = -3000) %>%
+                   return()
+           }, out_dir = brick_path, 
+           prefix = brick_prefix) %>%
+    print()
+
+# remove 
+brick_imgs %>% dplyr::pull(mixture) %>% unlist() %>% file.remove()
+
+
 
