@@ -2,10 +2,10 @@
 % Please edit documentation in R/util.R
 \name{build_brick}
 \alias{build_brick}
-\title{Build a SITS brick using a fusion odel (StarFM) to finnin the gaps}
+\title{Build a SITS brick using a fusion model (StarFM) to fill in the cloud gaps}
 \usage{
 build_brick(landsat_path, modis_path, scene_shp, tile_shp, brick_scene,
-  brick_year, brick_bands, brick_path, cloud_threshold,
+  brick_year, brick_bands, brick_path, cloud_threshold, n_best_img = 23,
   img_per_year = 23, image_step = 16, temp_dir = NULL)
 }
 \arguments{
@@ -26,6 +26,8 @@ build_brick(landsat_path, modis_path, scene_shp, tile_shp, brick_scene,
 \item{brick_path}{A length-one character. A path to store the resulting bricks.}
 
 \item{cloud_threshold}{A length-one numeric. The approximated proportion of clouds in the brick.}
+
+\item{n_best_img}{A length-one numeric. Use only only this number of images. Best means less cloudy.}
 
 \item{img_per_year}{A length-one numeric. The number of images in a brick-year. The default is 23.}
 

@@ -1,7 +1,4 @@
 .validate_input_files <- function(input_files) {
-
-    print(input_files)
-
     stopifnot(is.character(input_files))
     if (any(is.na(input_files))) {
         warning(sprintf("NAs found among the input files: ", input_files))

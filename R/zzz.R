@@ -58,6 +58,18 @@ utils::globalVariables(c(
 NULL
 
 
+
+#' .data 
+#'
+#' 
+#'
+#' @importFrom dplyr .data
+#' @name .data
+#' @rdname .data
+#' @export
+NULL
+
+
 .onAttach <- function(libname, pkgname) {
     if (!exists("logger") || is.null(logger) || is.na(logger)) {
         logger                 <- log4r::create.logger()

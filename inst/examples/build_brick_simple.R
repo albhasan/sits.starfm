@@ -1,8 +1,30 @@
+#!/usr/bin/env Rscript
 # Build a brick by just piling Landsat 8 images
 setwd("/home/alber/Documents/data/experiments/l8mod-fusion/Rpackage/sits.starfm")
-library(tidyverse)
-library(devtools)
+suppressMessages(suppressPackageStartupMessages(library(tidyverse)))
+suppressMessages(suppressPackageStartupMessages(library(optparse )))
+suppressMessages(suppressPackageStartupMessages(library(devtools )))
 devtools::load_all()
+
+option_list = list(
+    make_option(c("-s", "--scene"), type = "character", default = NULL, 
+        help = "landsat scene e.g. 225063",        metavar = "character"),
+    make_option(c("-f", "--from"),  type = "character", default = "NULL", 
+        help = "brick start date e.g. 2015-08-01", metavar = "character"),
+    make_option(c("-t", "--to"),    type = "character", default = "NULL", 
+        help = "brick end date e.g. 2016-08-01",   metavar = "character")
+)
+opt_parser <- OptionParser(option_list = option_list);
+opt <- parse_args(opt_parser)
+
+if (any(is.null(opt$scene), is.null(opt$from), is.null(opt$to))) {
+    print_help(opt_parser)
+    stop("Invalid input!", call.=FALSE)
+}
+
+brick_scene <- opt$scene
+brick_from  <- opt$from 
+brick_to    <- opt$to
 
 # configuration
 #brick_scene  <- "225063"
@@ -37,6 +59,7 @@ brick_imgs <- build_brick_tibble2(landsat_path, modis_path, scene_shp, tile_shp,
     dplyr::mutate(year = lubridate::year(img_date)) %>%
     dplyr::group_by(year) %>%
     dplyr::top_n(-as.integer(brick_n_img/2), cloud_cov) %>%
+    dplyr::slice(1:(as.integer(brick_n_img/2))) %>%
     dplyr::ungroup() %>%
     ensurer::ensure_that(nrow(.) == brick_n_img, err_desc = "Not enough images!")
 
@@ -82,5 +105,5 @@ brick_imgs %>% tidyr::unnest(mixture) %>%
 # remove 
 brick_imgs %>% dplyr::pull(mixture) %>% unlist() %>% file.remove()
 
-
+print("Finished!")
 

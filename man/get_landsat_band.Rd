@@ -15,7 +15,7 @@ get_landsat_band(path, band_name = "band_designation")
 A character.
 }
 \description{
-Get the full MOD13Q1 name from a landsat file
+Get the band name from a landsat file
 }
 \author{
 Alber Sanchez, \email{alber.ipia@inpe.br}
