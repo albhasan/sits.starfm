@@ -722,7 +722,7 @@ compute_vi <- function(brick_path, brick_pattern = "^brick_.*[.]tif$",
         tidyr::nest(file_path, band, .key = "files")
 
     ndvi_exp <- paste0("numpy.where(A != ", no_data, ", numpy.divide(A.astype(float64) - B.astype(float64) , A.astype(float64) + B.astype(float64), out = numpy.full_like(A.astype(float64), ", no_data, "), where = A != -B) * 10000, A)")
-    savi_exp <- "numpy.where((A != ", no_data, ") * (B != ", no_data, "), ((A.astype(float64) - B.astype(float64)) / (A.astype(float64) + B.astype(float64) + 5000.00001)) * 1.5 * 10000, ", no_data, ")"
+    savi_exp <- paste0("numpy.where((A != ", no_data, ") * (B != ", no_data, "), ((A.astype(float64) - B.astype(float64)) / (A.astype(float64) + B.astype(float64) + 5000.00001)) * 1.5 * 10000, ", no_data, ")")
 
     vi_paths <- lapply(1:nrow(brick_tb), function(b_index){
         b4 <- brick_tb %>% get_path(b_index, "red")
