@@ -64,12 +64,14 @@ add_missing_dates <- function(x, step, prodes_start) {
 #' @param n_best_img   A length-one numeric. Use only only this number of images. Best means less cloudy.
 #' @param image_step   A length-one numeric. The number of days between images.
 #' @param temp_dir     A length-one character. A path to a folder to store temporal files.
+#' @param no_data      A length-one numeric. The value for no data.
 #' @return             A tibble
 #' @export
 build_brick <- function(landsat_path, modis_path, scene_shp, tile_shp,
                         brick_scene, brick_year, brick_bands,
                         brick_path, cloud_threshold, n_best_img = 23,
-                        img_per_year = 23, image_step = 16, temp_dir = NULL) {
+                        img_per_year = 23, image_step = 16, temp_dir = NULL, 
+                        no_data = -9999) {
 
     input_vec <- c(landsat_path = landsat_path,
                    modis_path = modis_path,
@@ -263,8 +265,8 @@ build_brick <- function(landsat_path, modis_path, scene_shp, tile_shp,
         paths <- filled_tb %>% dplyr::filter(band %in% c(x, NA)) %>%
             .$filled %>% zoo::na.locf() %>%
             gdal_merge(out_filename = out_fn, separate = TRUE, of = "GTiff",
-                       creation_option = "BIGTIFF=YES", init = -3000,
-                       a_nodata = -3000)
+                       creation_option = "BIGTIFF=YES", init = no_data,
+                       a_nodata = no_data)
         return(paths)
     }, filled_tb = filled_tb, brick_path = brick_path, first_img_date = first_img_date)
     #save(brick_path, file = file.path(tmp_dir, "brick_path.Rdata"))
@@ -587,10 +589,11 @@ call_os <- function(command, args, stdout = "", stderr = "", dry_run = FALSE) {
 #'
 #' @param file_paths   A character. Paths to files of a Landsat image.
 #' @param out_dir      A length-one character. Path to store the results. 
-#' @param landsat_sat  A length-one character. The landsat satelite denomination e.g. '8'
+#' @param landsat_sat  A length-one character. The landsat satelite denomination e.g. '8'.
+#' @param no_data      A length-one numeric. The value for no data.
 #' @return             A character. Paths to the End member files.
 #' @export
-compute_mixture_model <- function(file_paths, out_dir, landsat_sat = '8'){
+compute_mixture_model <- function(file_paths, out_dir, landsat_sat = '8', no_data = -9999){
     # get misture model coefficients
     coef_tb <- END_MEMBERS_LANDSAT_8
     if (landsat_sat == '7') {
@@ -619,7 +622,22 @@ compute_mixture_model <- function(file_paths, out_dir, landsat_sat = '8'){
 
     img_md <- get_landsat_metadata(model_tb$file_path[1])
     vapply(member_names, function(member){
-        gcalc_exp <- paste(paste(LETTERS[1:nrow(coef_tb)], "*", model_tb[[member]]), collapse = " + ")
+
+
+    # util function
+    exp_nodata <- function(letter){
+        if(length(letter) == 1)
+            return(paste("(", letter, "!=", no_data, ")", sep = " ",collapse = " * "))
+        else(length(letter) > 1)
+            return(paste(vapply(letter, exp_invalid, character(1)), collapse = " * "))
+    }
+
+        gcalc_exp <- paste0("numpy.where(", exp_nodata(LETTERS[1:nrow(coef_tb)]), ", ",
+    paste(paste(LETTERS[1:nrow(coef_tb)], "*", model_tb[[member]]), collapse = " + "),
+            ", -9999)"
+        )
+
+
         model_tb$file_path %>% gdal_calc(out_filename = out_fnames[member], 
             expression = gcalc_exp, dstnodata = img_md$srcnodata_l8)
     }, character(1)) %>%
@@ -634,10 +652,11 @@ compute_mixture_model <- function(file_paths, out_dir, landsat_sat = '8'){
 #' @param brick_path    A length-one character. Path to bricks.
 #' @param brick_pattern A length-one character. Regular expression used to filter the files in brick_path.
 #' @param vi_index      A character. The indexes to be computed.
-#' @return            A character. Path to the created vegetation index bricks.
+#' @param no_data       A length-one numeric. The value for no data.
+#' @return              A character. Path to the created vegetation index bricks.
 #' @export
 compute_vi <- function(brick_path, brick_pattern = "^brick_.*[.]tif$",
-                       vi_index = c("ndvi", "savi")){
+                       vi_index = c("ndvi", "savi"), no_data = -9999){
 
     # Get the path to a file from a brick tibble
     # @param brick_tb A tibble of brick metadata. It must contain the fields c("files", "band", "file_path")
@@ -688,7 +707,7 @@ compute_vi <- function(brick_path, brick_pattern = "^brick_.*[.]tif$",
         vi_tmp %>% unlist() %>%
             gdal_merge(out_filename = vi_filename, separate = TRUE,
                        of = "GTiff", creation_option = "BIGTIFF=YES",
-                       init = -3000, a_nodata = -3000)
+                       init = no_data, a_nodata = no_data)
         # cleaning
         file.remove(unlist(vi_tmp))
         return(vi_filename)
@@ -702,9 +721,9 @@ compute_vi <- function(brick_path, brick_pattern = "^brick_.*[.]tif$",
                       band = get_landsat_band(file_path, band_name = "short_name")) %>%
         tidyr::nest(file_path, band, .key = "files")
 
-    #ndvi_exp <- "((A.astype(float64) - B.astype(float64)) / (A.astype(float64) + B.astype(float64)) + 0.00001) * 10000"
-    ndvi_exp <- "numpy.where(A != -3000, numpy.divide(A.astype(float64) - B.astype(float64) , A.astype(float64) + B.astype(float64), out = numpy.full_like(A.astype(float64), -3000), where = A != -B) * 10000, -3000)"
-    savi_exp <- "((A.astype(float64) - B.astype(float64)) / (A.astype(float64) + B.astype(float64) + 5000.00001)) * 1.5 * 10000"
+    ndvi_exp <- paste0("numpy.where(A != ", no_data, ", numpy.divide(A.astype(float64) - B.astype(float64) , A.astype(float64) + B.astype(float64), out = numpy.full_like(A.astype(float64), ", no_data, "), where = A != -B) * 10000, A)")
+    savi_exp <- "numpy.where((A != ", no_data, ") * (B != ", no_data, "), ((A.astype(float64) - B.astype(float64)) / (A.astype(float64) + B.astype(float64) + 5000.00001)) * 1.5 * 10000, ", no_data, ")"
+
     vi_paths <- lapply(1:nrow(brick_tb), function(b_index){
         b4 <- brick_tb %>% get_path(b_index, "red")
         b5 <- brick_tb %>% get_path(b_index, "nir")
@@ -1032,9 +1051,43 @@ get_brick_ts <- function(brick_path, pix_x, pix_y){
 }
 
 
+#' @title Replace negatives values.
+#' @author Alber Sanchez, \email{alber.ipia@@inpe.br}
+#' @description Replace the negatives values.
+#'
+#' @param img               A one-row tibble with a the fields 'sat_image' and 'files'.
+#' @param bands             A character. The names of the bands to mask. 
+#' @param replacement_value A numeric. The pixel value to fill in the clouds.
+#' @param out_dir           A length-one character. Path to store results.
+#' @param param             A list. A list of GDAL tranformation parameters.
+#' @param tmp_dir           A length-one character. Path to store temporal files.
+#' @return                  A tibble.
+mask_negatives <- function(img, bands, replacement_value, out_dir, param, tmp_dir = tempdir()){
+        img %>% dplyr::pull(files) %>% dplyr::bind_rows() %>%
+            dplyr::mutate(band = get_landsat_band(file_path)) %>%
+            dplyr::mutate(masked = purrr::map_chr(1:nrow(.),
+                function(x, file_tb, bands){
+                    row_x <- file_tb %>% dplyr::slice(x) %>%
+                        dplyr::filter(band %in% bands)
+                    if(nrow(row_x) != 1) return(NA_character_)
+                    row_x %>% dplyr::select(file_path) %>% unlist() %>%
+                        gdal_calc(
+                            out_filename = file.path(out_dir,
+                                paste0(paste(img$sat_image, row_x$band,
+                                             sep = "_"), "_maskneg", param[["fileext"]])),
+                            dstnodata = param$dstnodata,
+                            out_format = param$out_format,
+                            creation_option = param$creation_option,
+                            expression = paste0("(numpy.where(A < 0,",  replacement_value, ", A)).astype(int16)")) %>%
+                        return()
+                }, file_tb = ., bands = bands)) %>%
+        return()
+}
+
+
 #' @title Replace the clouds with a value.
 #' @author Alber Sanchez, \email{alber.ipia@@inpe.br}
-#' @description A Replace the clouds with a value.
+#' @description Replace the clouds with a value.
 #'
 #' @param img               A one-row tibble with a the fields 'sat_image' and 'files'.
 #' @param bands             A character. The names of the bands to mask. 
@@ -1069,9 +1122,9 @@ mask_clouds <- function(img, bands, replacement_value, out_dir, param, tmp_dir =
                         c(img_mask) %>%
                         gdal_calc(
                             out_filename = file.path(out_dir,
-                                        paste0(paste(img$sat_image, row_x$band, 
-                                                         sep = "_"),
-                                               param[["fileext"]])),
+                                paste0(paste(img$sat_image, row_x$band, 
+                                             sep = "_"), "_maskcloud",
+                                       param[["fileext"]])),
                             expression = paste0("(numpy.where(B,",  replacement_value, ", A)).astype(int16)")) %>%
                         return()
                 }, file_tb = ., img_mask = img_mask, bands = bands)) %>%
@@ -1217,9 +1270,10 @@ parse_img_name <- function(file_path){
 #' @param brick_prefix A lengh-one character. Prefix to append to produced file names.
 #' @param brick_scene  A length-one character. The scene or tile of the brick.
 #' @param out_dir      A character. Path to a directory for storing results.
+#' @param no_data      A length-one numeric. The value for no data.
 #' @return             A tibble of the matching PRODES dates and NA for the
 #' @export
-pile_up <- function(brick_imgs, file_col, brick_bands, brick_prefix, brick_scene, out_dir){
+pile_up <- function(brick_imgs, file_col, brick_bands, brick_prefix, brick_scene, out_dir, no_data = -9999){
 
     # helper function to pile up the files of a single band
     helper_pile_band <- function(i_tb){
@@ -1233,8 +1287,8 @@ pile_up <- function(brick_imgs, file_col, brick_bands, brick_prefix, brick_scene
                                          "STACK_BRICK", sep = "_"), ".tif"))
         i_tb %>% dplyr::pull(file_path) %>% unlist() %>%
             gdal_merge(out_filename = out_fn, separate = TRUE, of = "GTiff",
-                       creation_option = "BIGTIFF=YES", init = -3000,
-                       a_nodata = -3000) %>%
+                       creation_option = "BIGTIFF=YES", init = no_data,
+                       a_nodata = no_data) %>%
             tibble::enframe(name = NULL) %>%
             return()
     }

@@ -47,6 +47,7 @@ modis_path   <- "/home/alber/MOD13Q1"
 scene_shp    <- "/home/alber/Documents/data/experiments/l8mod-fusion/data/shp/wrs2_descending.shp"
 tile_shp     <- "/home/alber/Documents/data/experiments/l8mod-fusion/data/shp/modis-tiles.shp"
 temp_dir     <- "/home/alber/shared/tmp"
+no_data      <- -9999
 
 # handle temporal directories
 tmp_dir <- temp_dir %>% file.path(paste("L8MOD", brick_scene, lubridate::year(brick_to), sep = "_"))
@@ -96,7 +97,7 @@ brick_imgs %>% tidyr::unnest(mixture) %>%
                                    img_date, img_band, "STACK_BRICK.tif", sep = '_'))
                x %>% gdal_merge(out_filename = out_fn, separate = TRUE, 
                                 of = "GTiff", creation_option = "BIGTIFF=YES",
-                                init = -3000, a_nodata = -3000) %>%
+                                init = no_data, a_nodata = no_data) %>%
                    return()
            }, out_dir = brick_path, 
            prefix = brick_prefix) %>%
