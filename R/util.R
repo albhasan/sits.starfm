@@ -1125,6 +1125,9 @@ mask_clouds <- function(img, bands, replacement_value, out_dir, param, tmp_dir =
                                 paste0(paste(img$sat_image, row_x$band, 
                                              sep = "_"), "_maskcloud",
                                        param[["fileext"]])),
+                            dstnodata = param$dstnodata,
+                            out_format = param$out_format,
+                            creation_option = param$creation_option,
                             expression = paste0("(numpy.where(B,",  replacement_value, ", A)).astype(int16)")) %>%
                         return()
                 }, file_tb = ., img_mask = img_mask, bands = bands)) %>%
