@@ -6,7 +6,8 @@
 \usage{
 build_brick(landsat_path, modis_path, scene_shp, tile_shp, brick_scene,
   brick_year, brick_bands, brick_path, cloud_threshold, n_best_img = 23,
-  img_per_year = 23, image_step = 16, temp_dir = NULL)
+  img_per_year = 23, image_step = 16, temp_dir = NULL,
+  no_data = -9999)
 }
 \arguments{
 \item{landsat_path}{A length-one character. Path to a direcotry of Landsat images.}
@@ -34,6 +35,8 @@ build_brick(landsat_path, modis_path, scene_shp, tile_shp, brick_scene,
 \item{image_step}{A length-one numeric. The number of days between images.}
 
 \item{temp_dir}{A length-one character. A path to a folder to store temporal files.}
+
+\item{no_data}{A length-one numeric. The value for no data.}
 }
 \value{
 A tibble

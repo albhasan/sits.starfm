@@ -4,14 +4,17 @@
 \alias{compute_mixture_model}
 \title{Compute a misture model.}
 \usage{
-compute_mixture_model(file_paths, out_dir, landsat_sat = "8")
+compute_mixture_model(file_paths, out_dir, landsat_sat = "8",
+  no_data = -9999)
 }
 \arguments{
 \item{file_paths}{A character. Paths to files of a Landsat image.}
 
 \item{out_dir}{A length-one character. Path to store the results.}
 
-\item{landsat_sat}{A length-one character. The landsat satelite denomination e.g. '8'}
+\item{landsat_sat}{A length-one character. The landsat satelite denomination e.g. '8'.}
+
+\item{no_data}{A length-one numeric. The value for no data.}
 }
 \value{
 A character. Paths to the End member files.

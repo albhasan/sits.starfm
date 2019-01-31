@@ -5,7 +5,7 @@
 \title{Compute vegetation indexes from bricks.}
 \usage{
 compute_vi(brick_path, brick_pattern = "^brick_.*[.]tif$",
-  vi_index = c("ndvi", "savi"))
+  vi_index = c("ndvi", "savi"), no_data = -9999)
 }
 \arguments{
 \item{brick_path}{A length-one character. Path to bricks.}
@@ -13,6 +13,8 @@ compute_vi(brick_path, brick_pattern = "^brick_.*[.]tif$",
 \item{brick_pattern}{A length-one character. Regular expression used to filter the files in brick_path.}
 
 \item{vi_index}{A character. The indexes to be computed.}
+
+\item{no_data}{A length-one numeric. The value for no data.}
 }
 \value{
 A character. Path to the created vegetation index bricks.

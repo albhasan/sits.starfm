@@ -5,7 +5,7 @@
 \title{Pile images into files by band.}
 \usage{
 pile_up(brick_imgs, file_col, brick_bands, brick_prefix, brick_scene,
-  out_dir)
+  out_dir, no_data = -9999)
 }
 \arguments{
 \item{brick_imgs}{A tibble of images.}
@@ -19,6 +19,8 @@ pile_up(brick_imgs, file_col, brick_bands, brick_prefix, brick_scene,
 \item{brick_scene}{A length-one character. The scene or tile of the brick.}
 
 \item{out_dir}{A character. Path to a directory for storing results.}
+
+\item{no_data}{A length-one numeric. The value for no data.}
 }
 \value{
 A tibble of the matching PRODES dates and NA for the
