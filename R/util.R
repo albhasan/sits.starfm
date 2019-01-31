@@ -614,30 +614,26 @@ compute_mixture_model <- function(file_paths, out_dir, landsat_sat = '8', no_dat
 
     # build file names for resulting files
     member_names <- names(coef_tb)[-(1:2)]
-    dummy_name <- unlist(strsplit(basename(model_tb$file_path[1]), '_')) %>% 
-        .[-length(.)]
+    dummy_name <- model_tb %>% dplyr::filter(band == "sr_band2") %>%
+        dplyr::pull(file_path) %>% basename() %>% stringr::str_split('_') %>%
+        unlist() %>% .[1:8]
     out_fnames <- file.path(out_dir, paste(paste(dummy_name, collapse = "_"),
                             paste0(member_names, ".tif"), sep = '_'))
     names(out_fnames) <- member_names
 
     img_md <- get_landsat_metadata(model_tb$file_path[1])
     vapply(member_names, function(member){
-
-
-    # util function
-    exp_nodata <- function(letter){
-        if(length(letter) == 1)
-            return(paste("(", letter, "!=", no_data, ")", sep = " ",collapse = " * "))
-        else(length(letter) > 1)
-            return(paste(vapply(letter, exp_invalid, character(1)), collapse = " * "))
-    }
+        # util function
+        exp_nodata <- function(letter){
+            if(length(letter) == 1)
+                return(paste("(", letter, "!=", no_data, ")", sep = " ",collapse = " * "))
+            else(length(letter) > 1)
+                return(paste(vapply(letter, exp_nodata, character(1)), collapse = " * "))
+        }
 
         gcalc_exp <- paste0("numpy.where(", exp_nodata(LETTERS[1:nrow(coef_tb)]), ", ",
-    paste(paste(LETTERS[1:nrow(coef_tb)], "*", model_tb[[member]]), collapse = " + "),
-            ", -9999)"
-        )
-
-
+            paste(paste(LETTERS[1:nrow(coef_tb)], "*", model_tb[[member]]), collapse = " + "),
+            ", -9999)")
         model_tb$file_path %>% gdal_calc(out_filename = out_fnames[member], 
             expression = gcalc_exp, dstnodata = img_md$srcnodata_l8)
     }, character(1)) %>%
@@ -689,7 +685,7 @@ compute_vi <- function(brick_path, brick_pattern = "^brick_.*[.]tif$",
     compute_brick_vi <- function(brick_A, brick_B, vi_exp, vi_filename){
         n_bands <- get_number_of_bands(brick_A)
         if (n_bands != get_number_of_bands(brick_B)) {
-            warning("Missmatching number of bands!")
+            warning(sprintf("Missmatching number of bands between %s and %s", brick_A, brick_B))
             return(NA)
         }
         # export brick's bands
@@ -734,7 +730,7 @@ compute_vi <- function(brick_path, brick_pattern = "^brick_.*[.]tif$",
         }else{
             if ("ndvi" %in% vi_index) {
                 vi_filename <- b4 %>% stringr::str_replace("_red_", "_ndvi_")
-                ndvi_filename <- compute_brick_vi(b5,  b4, ndvi_exp, vi_filename)
+                ndvi_filename <- compute_brick_vi(b5, b4, ndvi_exp, vi_filename)
             }else if ("savi" %in% vi_index) {
                 vi_filename <- b4 %>% stringr::str_replace("_red_", "_savi_")
                 savi_filename <- compute_brick_vi(b5, b4, savi_exp, vi_filename)
