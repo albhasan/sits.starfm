@@ -61,7 +61,8 @@ brick_imgs <- build_brick_tibble2(landsat_path, modis_path, scene_shp, tile_shp,
     dplyr::top_n(-as.integer(brick_n_img/2), cloud_cov) %>%
     dplyr::slice(1:(as.integer(brick_n_img/2))) %>%
     dplyr::ungroup() %>%
-    ensurer::ensure_that(nrow(.) == brick_n_img, err_desc = "Not enough images!") %>%
+    ensurer::ensure_that(nrow(.) == brick_n_img, err_desc = "Not enough images to build a brick!") %>%
+    ensurer::ensure_that(all(vapply(.$files, nrow, numeric(1)) >= 7), err_desc = "Not enough files per image") %>%
     dplyr::mutate(masked = purrr::map(1:nrow(.), 
         function(rid, brick_imgs, brick_bands, out_dir, tmp_dir){
             param <- list(dstnodata = no_data, 
@@ -95,13 +96,21 @@ brick_files <- brick_imgs %>% pile_up(file_col = "masked",
                                       brick_bands = brick_bands, 
                                       brick_prefix = brick_prefix, 
                                       brick_scene = brick_scene, 
-                                      out_dir = brick_path)
+                                      out_dir = brick_path) %>%
+    ensurer::ensure_that(all(get_number_of_bands(.$value) == brick_n_img), 
+                         err_desc = "Some bricks miss the target number of bands")
 print(as.data.frame(brick_files))
 
 # build vegetation indexes bricks 
-compute_vi(brick_path, brick_pattern = paste0("^", brick_prefix, "_.*[.]tif$"),
+vi_brick <- compute_vi(brick_path, brick_pattern = paste0("^", brick_prefix, "_.*[.]tif$"),
                        vi_index = "ndvi") %>%
-    print()
+    unlist() %>% 
+    tibble::enframe(name = NULL) %>%
+    dplyr::filter(!is.na(value)) %>%
+    dplyr::mutate(n_img = get_number_of_bands(value)) %>%
+    print() %>%
+    ensurer::ensure_that(all(.$n_img == brick_n_img), 
+                             err_desc = "Some VI bricks miss the target number of bands")
 
 # build spectral mixture bricks
 brick_imgs <- brick_imgs %>% dplyr::mutate(mixture = purrr::map(.$masked, 
@@ -111,7 +120,7 @@ brick_imgs <- brick_imgs %>% dplyr::mutate(mixture = purrr::map(.$masked,
             tidyr::spread(key = "end_member", value = "file_path") %>%
             return()
     }))
-brick_imgs %>% tidyr::unnest(mixture) %>% 
+mix_brick <- brick_imgs %>% tidyr::unnest(mixture) %>% 
     dplyr::select(dark, substrate, vegetation) %>%
     lapply(function(x, out_dir, prefix){
                img_md <- x[1] %>% parse_img_name()
@@ -127,7 +136,11 @@ brick_imgs %>% tidyr::unnest(mixture) %>%
                    return()
            }, out_dir = brick_path, 
            prefix = brick_prefix) %>%
-    print()
+    unlist() %>%
+    tibble::enframe(name = NULL) %>%
+    dplyr::mutate(n_img = get_number_of_bands(value)) %>%
+    print() %>%
+    ensurer::ensure_that(all(.$n_img == brick_n_img))
 
 print("Finished!")
 
