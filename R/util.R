@@ -665,15 +665,6 @@ compute_vi <- function(brick_path, brick_pattern = "^brick_.*[.]tif$",
             dplyr::pull(file_path) %>% dplyr::first() %>% return()
     }
 
-    # Get the number of bands in a file
-    # @param filepath A length-one character. A path to a file
-    # @return A length-one numeric. The number of bands
-    get_number_of_bands <- function(filepath) {
-        system2("gdalinfo", filepath, stdout = TRUE) %>%
-            stringr::str_subset("Band") %>% dplyr::last() %>%
-            stringr::str_split(" ") %>% unlist() %>% dplyr::nth(2) %>%
-            as.numeric() %>% return()
-    }
 
     # Compute a vegetation index from the input bricks
     # NOTE: this is a workaround regarding gdal_calc inability to process bricks
@@ -717,8 +708,8 @@ compute_vi <- function(brick_path, brick_pattern = "^brick_.*[.]tif$",
                       band = get_landsat_band(file_path, band_name = "short_name")) %>%
         tidyr::nest(file_path, band, .key = "files")
 
-    ndvi_exp <- paste0("numpy.where(A != ", no_data, ", numpy.divide(A.astype(float64) - B.astype(float64) , A.astype(float64) + B.astype(float64), out = numpy.full_like(A.astype(float64), ", no_data, "), where = A != -B) * 10000, A)")
-    savi_exp <- paste0("numpy.where((A != ", no_data, ") * (B != ", no_data, "), ((A.astype(float64) - B.astype(float64)) / (A.astype(float64) + B.astype(float64) + 5000.00001)) * 1.5 * 10000, ", no_data, ")")
+        ndvi_exp <- paste0("numpy.where(A != ", no_data, ", numpy.divide(A.astype(float64) - B.astype(float64) , A.astype(float64) + B.astype(float64) + 0.0001, out = numpy.full_like(A.astype(float64), ", no_data, "), where = A != -B) * 10000, A)")
+        savi_exp <- paste0("numpy.where((A != ", no_data, ") * (B != ", no_data, "), ((A.astype(float64) - B.astype(float64)) / (A.astype(float64) + B.astype(float64) + 5000.0001)) * 1.5 * 10000, ", no_data, ")")
 
     vi_paths <- lapply(1:nrow(brick_tb), function(b_index){
         b4 <- brick_tb %>% get_path(b_index, "red")

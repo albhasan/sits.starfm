@@ -459,3 +459,25 @@ gdal_warp <- function(input_files, out_filename = NULL, s_srs = NULL,
     }
     return(out_filename)
 }
+
+#' @title Get the number of bands in a file.
+#' @author Alber Sanchez, \email{albequietr.ipia@@inpe.br}
+#' @description Get the number of bands in a file.
+#'
+#' @param filepath A character. Path to a file.
+#' @return         A numeric.
+#' @export
+get_number_of_bands <- function(filepath) {
+    stopifnot(is.atomic(filepath))
+    if(is.na(filepath) || length(filepath) < 1) return(filepath)
+    if (length(filepath) == 1) {
+        system2("gdalinfo", filepath, stdout = TRUE) %>%
+            stringr::str_subset("Band") %>% dplyr::last() %>%
+            stringr::str_split(" ") %>% unlist() %>% dplyr::nth(2) %>%
+            as.integer() %>% 
+            return()
+    } else {
+        return(vapply(filepath, get_number_of_bands, integer(1)))
+    }
+}
+
