@@ -1,0 +1,110 @@
+---
+title: "Landsat bricks for SITS"
+author: "Alber Sánchez"
+date: "`r Sys.Date()`"
+output: rmarkdown::html_vignette
+bibliography: references.bib
+vignette: >
+  %\VignetteIndexEntry{Vignette Title}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+
+# Data bricks for sits
+
+
+Analysing massive datasets of satellite imagery is hard. Even when using a 
+single data source, handling thousand of images is a time consuming task. In 
+order to ease data management and increase computing performance, we use a data 
+cube. A data cube is a set of large computer files of homogeneous spatial, 
+temporal, and spectral properties. 
+
+Our data cube is organized into chunks of spatio-temporal data that we call 
+bricks. Each brick stores one year of data of a single band (or remote sensing 
+index) of the same region using any image format. The data sources for our 
+bricks are the Landsat and MODIS satellite programs. 
+
+The Landsat program has continually provided imagery of the Earth surface for 45 
+years and it is a long-term program for studying changes in Earth's global 
+environment. The most recent mission (Landsat-8) provides visible and thermal 
+images of the landmasses on Earth each two weeks at 30m resolution [@Roy:2014; 
+@Irons:2012]. 
+
+On the other hand, the MODIS are satellite sensors which record 36 spectral 
+bands and produce images every two days. For our bricks, we used two derived 
+products of MODIS, known as MOD13Q1[@MOD13Q1] and MYD13Q1[@MYD13Q1], two 
+collections used in applications on vegetation researches. These products have 
+spatial resolution of 250m and their images are composite of the best pixel of 
+two weeks. The imagery dates from 2000 [@Friedl:2002]. Both Landsat-8 and MODIS 
+enable scientists to compare and monitor global vegetation parameters such as 
+photosynthetic activity and phenological change.
+
+
+## MODIS bricks
+
+TBD.
+
+
+## Landsat 8 bricks
+
+A brick construction starts with the raw images taken by the Landsat 
+program. Specifically, we use Landsat-8 images which undergo radiometric and 
+geometric corrections to compensate for topographic (e.g. relief) and 
+atmospheric phenomena (e.g. aerosols). The results are known as surface 
+reflectance images, which relate image pixels to precise locations on Earth 
+[@Barsi:2014]. This surfaace reflectance pre-processing process is made on 
+demand by the Geological Service of the United States of America.
+
+
+### Interpolated bricks
+
+We fill the cloud/shadows gaps in the Landsat-8 images using MOD13Q1/MYD13Q1 
+data products. To compensate for the differences in resolution and to keep the 
+Landsat-8 structure of the data, we apply a bilinear interpolation. Finally, 
+we stacked each band or vegetation index into a independent raster file. This 
+procedures is summarized in the Figure below.
+
+![Workflow of interpolated bricks.](./img/workflow_brick_l8mod.png){width=100%}
+
+
+### StarFM bricks
+
+
+The StarFM fusion model was first described in [@Gao:2006]. The model provides a 
+way to build fine from fine and coarse resolution images. The fusion model use a 
+fine-coarse image pair to build a statistical model to be applied to a coarse 
+resolution image of a differnte date. The results is a fine resolution image.
+
+We employed StarFM to fill in the clouds of Landsat 8 images. We build StarFM 
+models using fine-coarse pairs at future times (T1) to fill in the cloud gaps of 
+fine resolution images (T0) (see image below). 
+
+![Fusion model schema. Source: [@Gao:2006]](./img/starfm_data_flow.png){width=100%}
+
+The [StarFM software](https://www.ars.usda.gov/research/software/download/?softwareid=432) 
+is available at the Departmen of Agriculture of the United 
+States of America. 
+
+StarFM is reference to other fusion models such as ESTARFM [@Zhu:2010], and 
+STAARCH [@Hilker:2009], and STRUM [@Gevaert:2015]. See [@Gao:2015] for futher 
+details. 
+
+
+### Few cloud bricks
+
+
+The aforementioned bricks were produced for agricultural years (from August to 
+July) using the images available (23) and also using the images with the fewer 
+clouds.
+
+
+# References
+
