@@ -4,6 +4,12 @@
 # Short names adapted from "The Spectral Response of the Landsat-8 Operational Land Imager" Table 1, page 10233
 
 library(dplyr)
+library(purrr)
+library(lubridate)
+library(devtools)
+
+setwd("/home/alber/Documents/data/experiments/l8mod-fusion/Rpackage/sits.starfm")
+devtools::load_all()
 
 SPECS_L8_SR <- tibble::tibble(
     band_designation = c("sr_band1", "sr_band2", "sr_band3", "sr_band4",
@@ -105,6 +111,26 @@ END_MEMBERS_LANDSAT_8 <- c(0.482600, 0.217556, 0.107935, 0.085274,
         "sr_band4", "sr_band5", "sr_band6", "sr_band7")) %>%
     dplyr::select(band, wavelength, substrate, vegetation, dark)
 
-usethis::use_data(END_MEMBERS_LANDSAT_7, END_MEMBERS_LANDSAT_8, SPECS_L8_SR, 
-    SPECS_MOD13Q1, internal = TRUE, overwrite = TRUE)
+# metadata of the images used to build the bricks
+landsat_path <- "/home/alber/landsat8"
+modis_path   <- "/home/alber/MOD13Q1"
+scene_shp    <- "/home/alber/Documents/data/experiments/l8mod-fusion/data/shp/wrs2_descending.shp"
+tile_shp     <- "/home/alber/Documents/data/experiments/l8mod-fusion/data/shp/modis-tiles.shp"
+brick_scene  <- c("225063", "226064", "233067")
+brick_from   <- paste0(2013:2016, "-08-01") %>% rep(times = length(brick_scene)) %>% lubridate::date() %>% as.list()
+brick_to     <- paste0(2014:2017, "-07-30") %>% rep(times = length(brick_scene)) %>% lubridate::date() %>% as.list()
+brick_scene  <- brick_scene %>% rep(each = length(2013:2016)) %>% as.list()
+BRICK_IMAGES <- purrr::pmap(list(brick_scene, brick_from, brick_to), function(scene, from, to){
+    brick_imgs <- build_brick_tibble2(landsat_path, modis_path, scene_shp, tile_shp,
+                                     scenes = scene, from = from,to = to, 
+                                     add_neighbors = FALSE) %>%
+        dplyr::mutate(year = lubridate::year(img_date)) %>%
+        return()
+}) %>% dplyr::bind_rows()
 
+
+
+
+
+usethis::use_data(END_MEMBERS_LANDSAT_7, END_MEMBERS_LANDSAT_8, SPECS_L8_SR, 
+    SPECS_MOD13Q1, BRICK_IMAGES, internal = TRUE, overwrite = TRUE)
