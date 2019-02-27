@@ -7,5 +7,3 @@ check_api <- function() {
         skip("MOD13Q1 not available")
     }
 }
-
-
