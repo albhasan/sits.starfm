@@ -1,3 +1,4 @@
+#!/usr/bin/env Rscript
 # create the data for the package
 
 # Specifications Landsat 8 surface reflectance - Table 7.1 pag 21 LaSRC product guide
@@ -7,6 +8,7 @@ library(dplyr)
 library(purrr)
 library(lubridate)
 library(devtools)
+library(ensurer)
 
 setwd("/home/alber/Documents/data/experiments/l8mod-fusion/Rpackage/sits.starfm")
 devtools::load_all()
@@ -116,6 +118,8 @@ landsat_path <- "/home/alber/landsat8"
 modis_path   <- "/home/alber/MOD13Q1"
 scene_shp    <- "/home/alber/Documents/data/experiments/l8mod-fusion/data/shp/wrs2_descending.shp"
 tile_shp     <- "/home/alber/Documents/data/experiments/l8mod-fusion/data/shp/modis-tiles.shp"
+stopifnot(all(vapply(c(landsat_path, modis_path), dir.exists, logical(1))))
+stopifnot(all(vapply(c(scene_shp, tile_shp), file.exists, logical(1))))
 brick_scene  <- c("225063", "226064", "233067")
 brick_from   <- paste0(2013:2016, "-08-01") %>% rep(times = length(brick_scene)) %>% lubridate::date() %>% as.list()
 brick_to     <- paste0(2014:2017, "-07-30") %>% rep(times = length(brick_scene)) %>% lubridate::date() %>% as.list()
@@ -126,7 +130,7 @@ BRICK_IMAGES <- purrr::pmap(list(brick_scene, brick_from, brick_to), function(sc
                                      add_neighbors = FALSE) %>%
         dplyr::mutate(year = lubridate::year(img_date)) %>%
         return()
-}) %>% dplyr::bind_rows()
+}) %>% dplyr::bind_rows() %>% ensurer::ensure_that(nrow(.) > 0, err_desc = "Images not found!")
 
 
 
