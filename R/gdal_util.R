@@ -1,3 +1,6 @@
+# TODO: build gdalbuilldtvrt. 
+# VRT help gdal_calc.py to avoid erros while working with images of different sizes
+
 .validate_input_files <- function(input_files) {
     stopifnot(is.character(input_files))
     if (any(is.na(input_files))) {
@@ -480,4 +483,5 @@ get_number_of_bands <- function(filepath) {
         return(vapply(filepath, get_number_of_bands, integer(1)))
     }
 }
+
 

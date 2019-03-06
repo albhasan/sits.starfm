@@ -929,6 +929,40 @@ get_landsat_band <- function(path, band_name = "band_designation") {
 }
 
 
+#' @title Get a mask for the borders of a Lansat image.
+#' @author Alber Sanchez, \email{alber.ipia@@inpe.br}
+#' @description Get a raster with 0 where the borders of the given Landsat image occur and 1 everywhere else.
+#'
+#' @param in_file  A character. Path to a file.
+#' @param out_file A character. Path to a file.
+#' @param no_data  A numeric. The value for no data. The default is 0.
+#' @return         A character (identical to out_file).
+get_landsat_corner_mask <- function(in_file, out_file, no_data = 0){
+    stopifnot(length(in_file) > 0)
+    stopifnot(length(in_file) == length(out_file))
+    stopifnot(all(vapply(c(in_file, out_file), is.character, logical(1))))
+    stopifnot(all(vapply(in_file, file.exists, logical(1))))
+
+    if (length(in_file) == 1) {
+        fill_value <- sits.starfm::SPECS_L8_SR %>% 
+            dplyr::filter(band_designation == get_landsat_band(in_file)) %>%
+            ensurer::ensure_that(nrow(.) == 1, err_desc = "Unknown Landsat image!") %>%
+            dplyr::pull(fill_value)
+        in_file %>% gdal_calc(
+                out_filename = out_file, 
+                expression = paste0("(numpy.where(A == ", fill_value, ", 0, 1)).astype(int16)"),
+                dstnodata = no_data,
+                out_format = "GTiff") %>% 
+        return()
+    }else{
+        vapply(seq_along(in_file), function(i){
+                get_landsat_corner_mask(in_file[i], out_file[i])
+            }, character(1)) %>%
+            return()
+    }
+}
+
+
 #' @title Get the metadata required to call gdal's utilitaries.
 #' @author Alber Sanchez, \email{alber.ipia@@inpe.br}
 #' @description Get the metadata required to call gdal's utilitaries.
