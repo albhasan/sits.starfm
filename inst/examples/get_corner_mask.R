@@ -74,7 +74,7 @@ res <- l8_img %>%
     dplyr::filter(row_number() == 1) %>%
     dplyr::ungroup() %>%
     dplyr::select(-c(sat_image, files, neigh, cloud_cov)) %>% 
-    dplyr::mutate(mask_corner = file.path(out_dir, paste0("LC08_CORNERMASK_", tile, "_", prodes_year)))
+    dplyr::mutate(mask_corner = file.path(out_dir, paste0("LC08_CORNERMASK_", tile, "_", prodes_year, ".tif")))
 # me cago en la gran puta madre de R y de sus desarrolladores, ojalá que tengan una muerte lenta y dolorosa
 for (i in 1:nrow(res)){
     if(i > 0){
