@@ -20,7 +20,6 @@ knitr::opts_chunk$set(
 
 # Data bricks for sits
 
-
 Analysing massive datasets of satellite imagery is hard. Even when using a 
 single data source, handling thousand of images is a time consuming task. In 
 order to ease data management and increase computing performance, we use a data 
@@ -38,19 +37,19 @@ environment. The most recent mission (Landsat-8) provides visible and thermal
 images of the landmasses on Earth each two weeks at 30m resolution [@Roy:2014; 
 @Irons:2012]. 
 
-On the other hand, the MODIS are satellite sensors which record 36 spectral 
-bands and produce images every two days. For our bricks, we used two derived 
-products of MODIS, known as MOD13Q1[@MOD13Q1] and MYD13Q1[@MYD13Q1], two 
-collections used in applications on vegetation researches. These products have 
-spatial resolution of 250m and their images are composite of the best pixel of 
-two weeks. The imagery dates from 2000 [@Friedl:2002]. Both Landsat-8 and MODIS 
-enable scientists to compare and monitor global vegetation parameters such as 
-photosynthetic activity and phenological change.
+On the other hand, the MODIS are satellite sensors record 36 spectral bands
+and produce images every two days. Both Landsat-8 and MODIS enable scientists to
+compare and monitor global vegetation parameters such as photosynthetic activity
+and phenological change.
 
 
 ## MODIS bricks
 
-TBD.
+For our MODIS bricks, we used two products derived from MODIS, known as
+MOD13Q1[@MOD13Q1] and MYD13Q1[@MYD13Q1]. Both are used for land use and cover
+chage analysis. These products havethe same  spatial resolution of 250m and
+their images are composites of the best pixel of two weeks. The imagery dates
+back to 2000 [@Friedl:2002].
 
 
 ## Landsat 8 bricks
@@ -77,7 +76,6 @@ procedures is summarized in the Figure below.
 
 ### StarFM bricks
 
-
 The StarFM fusion model was first described in [@Gao:2006]. The model provides a 
 way to build fine from fine and coarse resolution images. The fusion model use a 
 fine-coarse image pair to build a statistical model to be applied to a coarse 
@@ -99,7 +97,6 @@ details.
 
 
 ### Few cloud bricks
-
 
 The aforementioned bricks were produced for agricultural years (from August to 
 July) using the images available (23) and also using the images with the fewer 

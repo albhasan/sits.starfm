@@ -947,7 +947,7 @@ get_landsat_corner_mask <- function(in_file, out_file, no_data = 0){
     stopifnot(all(vapply(in_file, file.exists, logical(1))))
 
     if (length(in_file) == 1) {
-        fill_value <- sits.starfm::SPECS_L8_SR %>% 
+        fill_value <- SPECS_L8_SR %>% 
             dplyr::filter(band_designation == get_landsat_band(in_file)) %>%
             ensurer::ensure_that(nrow(.) == 1, err_desc = "Unknown Landsat image!") %>%
             dplyr::pull(fill_value)

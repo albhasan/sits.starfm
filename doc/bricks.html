@@ -12,7 +12,7 @@
 
 <meta name="author" content="Alber Sánchez" />
 
-<meta name="date" content="2019-02-27" />
+<meta name="date" content="2019-03-11" />
 
 <title>Landsat bricks for SITS</title>
 
@@ -32,7 +32,7 @@
 
 <h1 class="title toc-ignore">Landsat bricks for SITS</h1>
 <h4 class="author"><em>Alber Sánchez</em></h4>
-<h4 class="date"><em>2019-02-27</em></h4>
+<h4 class="date"><em>2019-03-11</em></h4>
 
 
 
@@ -41,10 +41,10 @@
 <p>Analysing massive datasets of satellite imagery is hard. Even when using a single data source, handling thousand of images is a time consuming task. In order to ease data management and increase computing performance, we use a data cube. A data cube is a set of large computer files of homogeneous spatial, temporal, and spectral properties.</p>
 <p>Our data cube is organized into chunks of spatio-temporal data that we call bricks. Each brick stores one year of data of a single band (or remote sensing index) of the same region using any image format. The data sources for our bricks are the Landsat and MODIS satellite programs.</p>
 <p>The Landsat program has continually provided imagery of the Earth surface for 45 years and it is a long-term program for studying changes in Earth’s global environment. The most recent mission (Landsat-8) provides visible and thermal images of the landmasses on Earth each two weeks at 30m resolution <span class="citation">(Roy et al. 2014; Irons, Dwyer, and Barsi 2012)</span>.</p>
-<p>On the other hand, the MODIS are satellite sensors which record 36 spectral bands and produce images every two days. For our bricks, we used two derived products of MODIS, known as MOD13Q1<span class="citation">(Didan 2015a)</span> and MYD13Q1<span class="citation">(Didan 2015b)</span>, two collections used in applications on vegetation researches. These products have spatial resolution of 250m and their images are composite of the best pixel of two weeks. The imagery dates from 2000 <span class="citation">(Friedl et al. 2002)</span>. Both Landsat-8 and MODIS enable scientists to compare and monitor global vegetation parameters such as photosynthetic activity and phenological change.</p>
+<p>On the other hand, the MODIS are satellite sensors record 36 spectral bands and produce images every two days. Both Landsat-8 and MODIS enable scientists to compare and monitor global vegetation parameters such as photosynthetic activity and phenological change.</p>
 <div id="modis-bricks" class="section level2">
 <h2>MODIS bricks</h2>
-<p>TBD.</p>
+<p>For our MODIS bricks, we used two products derived from MODIS, known as MOD13Q1<span class="citation">(Didan 2015a)</span> and MYD13Q1<span class="citation">(Didan 2015b)</span>. Both are used for land use and cover chage analysis. These products havethe same spatial resolution of 250m and their images are composites of the best pixel of two weeks. The imagery dates back to 2000 <span class="citation">(Friedl et al. 2002)</span>.</p>
 </div>
 <div id="landsat-8-bricks" class="section level2">
 <h2>Landsat 8 bricks</h2>
