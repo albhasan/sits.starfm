@@ -384,10 +384,10 @@ build_brick_tibble <- function(landsat_path, modis_path, scene_shp, tile_shp,
 build_brick_tibble2 <- function(landsat_path, modis_path, scene_shp, tile_shp,
                                 scenes, from, to, add_neighbors){
 
-    if (!all(dir.exists(landsat_path), dir.exists(modis_path))) {
+    if (!all(vapply(c(landsat_path, modis_path), dir.exists, logical(1)))) {
         stop("Directory not found!")
     }
-    if (!all(file.exists(scene_shp), file.exists(tile_shp))) {
+    if (!all(vapply(c(scene_shp, tile_shp), file.exists, logical(1)))) {
         stop("File not found!")
     }
 
@@ -450,14 +450,17 @@ build_brick_tibble2 <- function(landsat_path, modis_path, scene_shp, tile_shp,
 build_landsat_tibble <- function(img_path, pattern = NULL, from = NULL,
                                  to = NULL, prodes_year_start = "-08-01") {
     l8_files <- img_path %>% list.files(pattern = pattern, full.names = TRUE,
-                                        recursive = TRUE)
+                                        recursive = TRUE) %>%
+        ensurer::ensure_that(length(.) > 0,
+                             err_desc = sprintf("No files found in %s", img_path))
     l8_img <- l8_files %>% stringr::str_subset(pattern = ".*[.]tif$") %>%
-        dplyr::as_tibble() %>% dplyr::rename(file_path = value) %>%
+        tibble::enframe(name = NULL) %>% dplyr::rename(file_path = value) %>%
         dplyr::mutate(sat_image = substr(basename(file_path), 1, 40)) %>%
         dplyr::select(sat_image, file_path) %>%
         tidyr::nest(file_path, .key = "files") %>%
         dplyr::mutate(tile = substr(sat_image, 11, 16),
-                      img_date = lubridate::ymd(substr(sat_image, 18, 25)),
+                      img_date  = lubridate::ymd(substr(sat_image, 18, 25)),
+                      proc_date = lubridate::ymd(substr(sat_image, 27, 34)),
                       prodes_year = match_prodes_year(
                           img_date, prodes_start = prodes_year_start)) %>%
         dplyr::distinct(tile, img_date, .keep_all = TRUE) %>%
