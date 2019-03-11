@@ -1,0 +1,65 @@
+---
+title: "Satellite images"
+author: "Alber Sánchez"
+date: "`r Sys.Date()`"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Vignette Title}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+
+library(sits.starfm)
+library(dplyr)
+library(kableExtra)
+library(knitr)
+library(ggplot2)
+
+setwd("/home/alber/Documents/data/experiments/l8mod-fusion/Rpackage/sits.starfm")
+devtools::load_all()
+
+```
+
+
+# Landsat 8
+
+* Approximately 250 Landsat-8 images.
+* Scenes 225063, 226964, and 233067.
+* Ranging from August 2013 to July 2017.
+* Radometrically corrected (surface reflectance).
+* Processed and downloaded from NASA between February and August 2017.
+
+
+## Statistics by scene year
+
+```{r scene_pyear_stats, fig.width=7, fig.height=4, echo=FALSE}
+BRICK_IMAGES %>%
+    dplyr::select(-c(files, tile, neigh)) %>% 
+    dplyr::group_by(scene, prodes_year) %>%
+    dplyr::summarize(count = n(), 
+                     cloud_cover_mean = mean(cloud_cov),
+                     cloud_cover_sd = sd(cloud_cov),
+                     cloud_cover_min = min(cloud_cov),
+                     cloud_cover_max = max(cloud_cov)) %>%
+    knitr::kable() %>%
+    kableExtra::kable_styling(full_width = F)
+
+BRICK_IMAGES %>%
+    dplyr::select(-c(files, tile, neigh)) %>%
+    dplyr::group_by(scene, prodes_year) %>% 
+    dplyr::mutate(id = seq_along(sat_image)) %>%
+        ggplot2::ggplot() +
+        ggplot2::geom_line( aes(x = id, y = cloud_cov, color = cloud_cov, group = prodes_year)) +
+	ggplot2::geom_point(aes(x = id, y = cloud_cov, color = cloud_cov)) +
+	ggplot2::facet_grid(scene ~ prodes_year) +
+	ggplot2::ggtitle("Cloud cover")
+# ggsave(filename = "deleteme.png")
+
+```
+
