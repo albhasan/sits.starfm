@@ -26,11 +26,15 @@ devtools::load_all()
 
 ```
 
-# MOD13Q1
 
-TBD
+# Landsat 8
 
-# Landsat 9
+* Approximately 250 Landsat-8 images.
+* Scenes 225063, 226964, and 233067.
+* Ranging from August 2013 to July 2017.
+* Radometrically corrected (surface reflectance).
+* Processed and downloaded from NASA between February and August 2017.
+
 
 ## Statistics by scene year
 
@@ -46,8 +50,6 @@ BRICK_IMAGES %>%
     knitr::kable() %>%
     kableExtra::kable_styling(full_width = F)
 
-
-
 BRICK_IMAGES %>%
     dplyr::select(-c(files, tile, neigh)) %>%
     dplyr::group_by(scene, prodes_year) %>% 
@@ -60,8 +62,4 @@ BRICK_IMAGES %>%
 # ggsave(filename = "deleteme.png")
 
 ```
-
-
-
-
 
