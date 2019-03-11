@@ -75,14 +75,12 @@ res <- l8_img %>%
     dplyr::ungroup() %>%
     dplyr::select(-c(sat_image, files, neigh, cloud_cov)) %>% 
     dplyr::mutate(mask_corner = file.path(out_dir, paste0("LC08_CORNERMASK_", tile, "_", prodes_year, ".tif")))
-# me cago en la gran puta madre de R y de sus desarrolladores, ojalá que tengan una muerte lenta y dolorosa
 for (i in 1:nrow(res)){
     if(i > 0){
         print(sprintf("Pu~netero R copiando a %s", res$mask_corner[[i]]))
         file.copy(res$mask_area[[i]], res$mask_corner[[i]])
     }
 }
-# R hijo de treinta mill putas!!!
 #  - - 
 
 
