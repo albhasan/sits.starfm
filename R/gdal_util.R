@@ -1,23 +1,10 @@
-# TODO: build gdalbuilldtvrt. 
-# VRT help gdal_calc.py to avoid erros while working with images of different sizes
-
-.validate_input_files <- function(input_files) {
-    stopifnot(is.character(input_files))
-    if (any(is.na(input_files))) {
-        warning(sprintf("NAs found among the input files: ", input_files))
-        input_files <- input_files[!is.na(input_files)]
-    }
-    return(input_files)
-}
-
-
 #' @title Do calculations on images.
 #' @author Alber Sanchez, \email{alber.ipia@@inpe.br}
 #' @description R wrapper for gdal_calc.py
 #'
 #' @param input_files           A character. Paths to the image files.
 #' @param out_filename          A length-one character. The path to the
-#' destination file. The default is out.tif in the current working directory.
+#' destination file.
 #' @param expression            A character. The expresion to compute on the
 #' images using upper case A-Z letters to represent the images in the same order
 #' as input_files.
@@ -38,15 +25,20 @@
 #' @param dry_run               A length-one logical. The default is FALSE.
 #' @return out_filename A length-one character.
 #' @export
-gdal_calc <- function(input_files, out_filename = NULL, expression,
+gdal_calc <- function(input_files,
+                      out_filename = tempfile(pattern = "gdal_calc_out_", fileext = ".tif"),
+                      expression,
                       band_number = NULL, dstnodata = NULL, data_type = NULL,
                       out_format = NULL, creation_option = NULL,
                       all_bands = NULL, overwrite = FALSE, verbose = FALSE,
                       quiet = FALSE, dry_run = FALSE) {
-    input_files <- .validate_input_files(input_files)
+
+    if (any(is.na(input_files))) {
+        warning("NAs found in gdal_calc. Removing them...")
+        input_files <- input_files[!is.na(input_files)]
+    }
+    stopifnot(.is_input_file_valid(input_files))
     params <- paste0("--calc=\"", expression, "\"")
-    if (is.null(out_filename))
-        out_filename <- file.path(getwd(), "out.tif")
     params <- append(params, paste0("--outfile=", out_filename))
     params <- append(params, paste(paste0("-", LETTERS[1:length(input_files)]),
                                    input_files))
@@ -104,12 +96,21 @@ gdal_calc <- function(input_files, out_filename = NULL, expression,
 #' @param dry_run               A length-one logical. The default is FALSE.
 #' @return          A length-one character. out_filename.
 #' @export
-gdal_merge <- function(input_files, out_filename = NULL, of = NULL,
+gdal_merge <- function(input_files,
+                       out_filename = tempfile(pattern = "gdal_merge_out_", fileext = ".tif"),
+                       of = NULL,
                        creation_option = NULL, ot = NULL, ps = NULL,
                        tap = FALSE, ul_lr = NULL, v = FALSE, separate = FALSE,
                        pct = FALSE, nodata_value = NULL, a_nodata = NULL,
                        init = NULL, createonly = FALSE, dry_run = FALSE){
+
+    if (any(is.na(input_files))) {
+        warning("NAs found in gdal_merge. Removing them...")
+        input_files <- input_files[!is.na(input_files)]
+    }
+    stopifnot(.is_input_file_valid(input_files))
     params <- character()
+
     if (!is.null(of))
         params <- append(params, paste("-of", of))
     if (!is.null(creation_option))
@@ -138,9 +139,6 @@ gdal_merge <- function(input_files, out_filename = NULL, of = NULL,
         params <- append(params, "-createonly")
     #
     params <- append(params, input_files)
-    if (is.null(out_filename)) {
-        out_filename <- file.path(getwd(), "out.tif")
-    }
     params <- append(paste("-o", out_filename), params)
     error <- call_os(command = "gdal_merge.py", args = params, dry_run = dry_run)
     if (error) {
@@ -149,9 +147,6 @@ gdal_merge <- function(input_files, out_filename = NULL, of = NULL,
     }
     return(out_filename)
 }
-
-
-
 
 
 #' @title Convert raster between formats
@@ -195,17 +190,23 @@ gdal_merge <- function(input_files, out_filename = NULL, of = NULL,
 #' @param oo     A character. Open options for input files e.g.
 #' c('NAME1=VALUE1', 'NAME2=VALUE2').
 #' @return          A length-one character. out_filename.
-gdal_translate <- function(
-    input_files, out_filename = NULL, ot = NULL, strict = FALSE, of = NULL,
+gdal_translate <- function(input_files,
+    out_filename = tempfile(pattern = "gdal_translate_out_", fileext = ".tif"),
+    ot = NULL, strict = FALSE, of = NULL,
     b = NULL, mask = NULL, expand = NULL, outsize = NULL, tr = NULL, r = NULL,
     scale = NULL, exponent = NULL, unscale = FALSE, srcwin = NULL, projwin = NULL,
     projwin_srs = NULL, epo = FALSE, eco = FALSE, a_srs = NULL, a_scale = NULL,
     a_offset = NULL, a_ullr = NULL, a_nodata = NULL, colorinterp_X = NULL,
     colorinterp = NULL, mo = NULL, creation_option = NULL, gcp = NULL, q = FALSE,
-    sds = FALSE, stats = FALSE, norat = FALSE, oo = NULL ){
+    sds = FALSE, stats = FALSE, norat = FALSE, oo = NULL, dry_run = FALSE){
 
-    input_files <- .validate_input_files(input_files)
+    if (any(is.na(input_files))) {
+        warning("NAs found in gdal_translate. Removing them...")
+        input_files <- input_files[!is.na(input_files)]
+    }
+    stopifnot(.is_input_file_valid(input_files))
     params <- character()
+
     if (!is.null(ot))
         params <- append(params, paste("-ot", ot))
     if (strict)
@@ -277,11 +278,8 @@ gdal_translate <- function(
         params <- append(params, paste("-oo", oo))
     #
     params <- append(params, input_files)
-    if (is.null(out_filename)) {
-        out_filename <- file.path(getwd(), "out.tif")
-    }
     params <- append(params, out_filename)
-    error <- call_os(command = "gdal_translate", args = params)
+    error <- call_os(command = "gdal_translate", args = params, dry_run = dry_run)
     if (error) {
         warning("Failed call to gdal_translate")
         return(NA_character_)
@@ -296,7 +294,6 @@ gdal_translate <- function(
 #'
 #' @param input_files  A character. Paths to the image files.
 #' @param out_filename A length-one character. The path to the destination file.
-#' The default is out.tif in the current working directory.
 #' @param s_srs        A length-one character.
 #' @param target_srs   A length-one character. The target spatial reference set.
 #' @param to           A character. e.g c('NAME1=VALUE1', 'NAME2=VALUE2')
@@ -344,7 +341,9 @@ gdal_translate <- function(
 #' @param oo           A character. e.g. c('NAME1=VALUE1', 'NAME2=VALUE2')
 #' @param doo          A character. e.g. c('NAME1=VALUE1', 'NAME2=VALUE2')
 #' @return out_filename A length-one character.
-gdal_warp <- function(input_files, out_filename = NULL, s_srs = NULL,
+gdal_warp <- function(input_files,
+                      out_filename = tempfile(pattern = "gdal_warp_out_", fileext = ".tif"),
+                      s_srs = NULL,
                       target_srs = NULL, to = NULL, novshiftgrid = FALSE,
                       order = NULL, tps = FALSE, rpc = FALSE, geoloc = FALSE,
                       et = NULL, refine_gcps = NULL, extent_output = NULL,
@@ -356,9 +355,16 @@ gdal_warp <- function(input_files, out_filename = NULL, s_srs = NULL,
                       out_format = NULL, creation_option = NULL, cutline = NULL,
                       cl = NULL, cwhere = NULL, csql = NULL, cblend = NULL,
                       crop_to_cutline = FALSE, overwrite = FALSE, nomd = FALSE,
-                      cvmd = NULL, setci = FALSE, oo = NULL, doo = NULL) {
-    input_files <- .validate_input_files(input_files)
+                      cvmd = NULL, setci = FALSE, oo = NULL, doo = NULL,
+                      dry_run = FALSE) {
+
+    if (any(is.na(input_files))) {
+        warning("NAs found in gdal_warp. Removing them...")
+        input_files <- input_files[!is.na(input_files)]
+    }
+    stopifnot(.is_input_file_valid(input_files))
     params <- character()
+
     if (!is.null(s_srs))
         params <- append(params, paste("-s_srs", s_srs))
     if (!is.null(target_srs))
@@ -451,17 +457,87 @@ gdal_warp <- function(input_files, out_filename = NULL, s_srs = NULL,
         params <- append(params, paste("-doo", doo))
     #
     params <- append(params, input_files)
-    if (is.null(out_filename)) {
-        out_filename <- file.path(getwd(), "out.tif")
-    }
     params <- append(params, out_filename)
-    error <- call_os(command = "gdalwarp", args = params)
+    error <- call_os(command = "gdalwarp", args = params, dry_run = dry_run)
     if (error) {
         warning("Failed call to gdalwarp")
         return(NA_character_)
     }
     return(out_filename)
 }
+
+
+#' @title Build a Virtual Dataset file.
+#' @author Alber Sanchez, \email{alber.ipia@@inpe.br}
+#' @description R wrapper for gdalbuildvrt
+#'
+#' @param input_files           A character. Paths to the image files.
+#' @param out_filename          A length-one character. The path to the
+#' destination file. The default is a temporal file.
+#
+#' @return out_filename A length-one character.
+#' @export
+gdalbuildvrt <- function(input_files,
+                         out_filename = tempfile(pattern = "gdalbuildvrtout_", fileext = ".vrt"),
+                         tileindex = NULL, resolution = NULL,
+                         target_extent = NULL, target_resolution = NULL,
+                         tap = FALSE, separate = FALSE, band = NULL,
+                         subdataset = NULL, q = TRUE, optimise = NULL,
+                         addalpha = FALSE, hidenodata = FALSE, srcnodata = NULL,
+                         vrtnodata = NULL, a_srs = NULL, resampling = NULL,
+                         oo = NULL, input_file_list = NULL, overwrite = FALSE,
+                         dry_run = FALSE){
+
+    if (any(is.na(input_files))) {
+        warning("NAs found in gdalbuildvrt. Removing them...")
+        input_files <- input_files[!is.na(input_files)]
+    }
+    stopifnot(.is_input_file_valid(input_files))
+
+    if (!is.null(tileindex))
+       params <- append(params, paste0("-tileindex ", tileindex))
+    if (!is.null(resolution))
+        params <- append(params, paste0("-resolution ", resolution))
+    if (!is.null(target_extent))
+        params <- append(params, paste("-te", paste(extent_output, collapse = " ")))
+    if (!is.null(band))
+        params <- append(params, paste("-b", paste(band, sep = " ")))
+    if (!is.null(subdataset))
+        params <- append(params, paste0("-sd ", subdataset))
+    if (!is.null(optimise))
+        params <- append(params, paste0("-optim ", optimise))
+    if (!is.null(srcnodata))
+        params <- append(params, paste0("-srcnodata '", paste(srcnodata, collapse = " "), "'"))
+    if (!is.null(vrtnodata))
+        params <- append(params, paste0("-vrtnodata '", paste(vrtnodata, collapse = " "), "'"))
+    if (!is.null(a_srs))
+        params <- append(params, paste0("-a_srs ", a_srs))
+    if (!is.null(resampling))
+        params <- append(params, paste0("-r ", resampling))
+    if (!is.null(oo))
+        params <- append(params, paste("-oo", oo))
+    if (!is.null(input_file_list))
+        params <- append(params, paste("-input_file_list", input_file_list))
+    if (tap)
+        params <- append(params, "-tap")
+    if (q)
+        params <- append(params, "-q")
+    if (addalpha)
+        params <- append(params, "-addalpha")
+    if (hidenodat)
+        params <- append(params, "-hidenodata")
+    if (overwrite)
+        params <- append(params, "-overwrite")
+    params <- append(params, out_filename)
+    params <- append(params, input_files)
+    error <- call_os(command = "gdalbuildvrt", args = params, dry_run = dry_run)
+    if (error) {
+        warning("Failed call to gdalbuildvrt")
+        return(NA_character_)
+    }
+    return(out_filename)
+}
+
 
 #' @title Get the number of bands in a file.
 #' @author Alber Sanchez, \email{albequietr.ipia@@inpe.br}
@@ -472,16 +548,40 @@ gdal_warp <- function(input_files, out_filename = NULL, s_srs = NULL,
 #' @export
 get_number_of_bands <- function(filepath) {
     stopifnot(is.atomic(filepath))
-    if(is.na(filepath) || length(filepath) < 1) return(filepath)
+    if (is.na(filepath) || length(filepath) < 1) return(filepath)
     if (length(filepath) == 1) {
         system2("gdalinfo", filepath, stdout = TRUE) %>%
             stringr::str_subset("Band") %>% dplyr::last() %>%
             stringr::str_split(" ") %>% unlist() %>% dplyr::nth(2) %>%
-            as.integer() %>% 
+            as.integer() %>%
             return()
     } else {
         return(vapply(filepath, get_number_of_bands, integer(1)))
     }
 }
 
+.is_input_file_valid <- function(files){
+    if (any(vapply(files, is.null, logical(1))))
+        return(FALSE)
+    if (any(vapply(files, is.na, logical(1))))
+        return(FALSE)
+    if (!all(vapply(files, file.exists, logical(1))))
+        return(FALSE)
+    return(TRUE)
+}
 
+.is_resolution_valid <- function(res){
+    if (is.atomic(res))
+        return(is.numeric(res) && length(res) == 2)
+    if (is.list(res))
+        return(vapply(res, .is_resolution_valid, logical(1)))
+    return(FALSE)
+}
+
+.is_extent_valid <- function(ext){
+    if (is.atomic(res))
+        return(is.numeric(ext) && length(ext) == 4)
+    if (is.list(res))
+        return(vapply(ext, .is_extent_valid, logical(1)))
+    return(FALSE)
+}
