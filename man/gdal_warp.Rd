@@ -4,25 +4,25 @@
 \alias{gdal_warp}
 \title{Process images}
 \usage{
-gdal_warp(input_files, out_filename = NULL, s_srs = NULL,
-  target_srs = NULL, to = NULL, novshiftgrid = FALSE, order = NULL,
-  tps = FALSE, rpc = FALSE, geoloc = FALSE, et = NULL,
-  refine_gcps = NULL, extent_output = NULL, extent_output_srs = NULL,
-  tr = NULL, tap = FALSE, size_ouput = NULL, ovr = NULL,
-  wo = NULL, ot = NULL, wt = NULL, resampling = NULL,
-  srcnodata = NULL, dstnodata = NULL, srcalpha = FALSE,
-  nosrcalpha = FALSE, dstalpha = FALSE, wm = NULL, multi = FALSE,
-  quiet = FALSE, out_format = NULL, creation_option = NULL,
-  cutline = NULL, cl = NULL, cwhere = NULL, csql = NULL,
-  cblend = NULL, crop_to_cutline = FALSE, overwrite = FALSE,
-  nomd = FALSE, cvmd = NULL, setci = FALSE, oo = NULL,
-  doo = NULL)
+gdal_warp(input_files, out_filename = tempfile(pattern =
+  "gdal_warp_out_", fileext = ".tif"), s_srs = NULL, target_srs = NULL,
+  to = NULL, novshiftgrid = FALSE, order = NULL, tps = FALSE,
+  rpc = FALSE, geoloc = FALSE, et = NULL, refine_gcps = NULL,
+  extent_output = NULL, extent_output_srs = NULL, tr = NULL,
+  tap = FALSE, size_ouput = NULL, ovr = NULL, wo = NULL,
+  ot = NULL, wt = NULL, resampling = NULL, srcnodata = NULL,
+  dstnodata = NULL, srcalpha = FALSE, nosrcalpha = FALSE,
+  dstalpha = FALSE, wm = NULL, multi = FALSE, quiet = FALSE,
+  out_format = NULL, creation_option = NULL, cutline = NULL,
+  cl = NULL, cwhere = NULL, csql = NULL, cblend = NULL,
+  crop_to_cutline = FALSE, overwrite = FALSE, nomd = FALSE,
+  cvmd = NULL, setci = FALSE, oo = NULL, doo = NULL,
+  dry_run = FALSE)
 }
 \arguments{
 \item{input_files}{A character. Paths to the image files.}
 
-\item{out_filename}{A length-one character. The path to the destination file.
-The default is out.tif in the current working directory.}
+\item{out_filename}{A length-one character. The path to the destination file.}
 
 \item{s_srs}{A length-one character.}
 
@@ -111,6 +111,8 @@ c('NAME1=VALUE1', 'NAME2=VALUE2')}
 \item{oo}{A character. e.g. c('NAME1=VALUE1', 'NAME2=VALUE2')}
 
 \item{doo}{A character. e.g. c('NAME1=VALUE1', 'NAME2=VALUE2')}
+
+\item{dry_run}{A length-one logical. Do not run, just print the sytem call.}
 }
 \value{
 out_filename A length-one character.

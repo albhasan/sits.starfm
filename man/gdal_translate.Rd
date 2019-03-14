@@ -4,15 +4,16 @@
 \alias{gdal_translate}
 \title{Convert raster between formats}
 \usage{
-gdal_translate(input_files, out_filename = NULL, ot = NULL,
-  strict = FALSE, of = NULL, b = NULL, mask = NULL,
-  expand = NULL, outsize = NULL, tr = NULL, r = NULL,
-  scale = NULL, exponent = NULL, unscale = FALSE, srcwin = NULL,
-  projwin = NULL, projwin_srs = NULL, epo = FALSE, eco = FALSE,
-  a_srs = NULL, a_scale = NULL, a_offset = NULL, a_ullr = NULL,
-  a_nodata = NULL, colorinterp_X = NULL, colorinterp = NULL,
-  mo = NULL, creation_option = NULL, gcp = NULL, q = FALSE,
-  sds = FALSE, stats = FALSE, norat = FALSE, oo = NULL)
+gdal_translate(input_files, out_filename = tempfile(pattern =
+  "gdal_translate_out_", fileext = ".tif"), ot = NULL, strict = FALSE,
+  of = NULL, b = NULL, mask = NULL, expand = NULL,
+  outsize = NULL, tr = NULL, r = NULL, scale = NULL,
+  exponent = NULL, unscale = FALSE, srcwin = NULL, projwin = NULL,
+  projwin_srs = NULL, epo = FALSE, eco = FALSE, a_srs = NULL,
+  a_scale = NULL, a_offset = NULL, a_ullr = NULL, a_nodata = NULL,
+  colorinterp_X = NULL, colorinterp = NULL, mo = NULL,
+  creation_option = NULL, gcp = NULL, q = FALSE, sds = FALSE,
+  stats = FALSE, norat = FALSE, oo = NULL, dry_run = FALSE)
 }
 \arguments{
 \item{input_files}{A character. Paths to the image files.}
@@ -84,6 +85,8 @@ c('NAME1=VALUE1', 'NAME2=VALUE2').}
 
 \item{oo}{A character. Open options for input files e.g.
 c('NAME1=VALUE1', 'NAME2=VALUE2').}
+
+\item{dry_run}{A length-one logical. Do not run, just print the sytem call.}
 }
 \value{
 A length-one character. out_filename.

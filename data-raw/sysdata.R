@@ -98,7 +98,7 @@ END_MEMBERS_LANDSAT_7 <- c(0.483000, 0.218413, 0.100880, 0.083704,
                            1.648000, 0.754645, 0.208614, 0.003250,
                            2.206000, 0.671638, 0.088058, 0.002208) %>%
     matrix(ncol = 4, byrow = TRUE, dimnames = list(NULL, c_names)) %>%
-    dplyr::as_tibble() %>% dplyr::mutate(band = c("sr_band1", "sr_band2", 
+    dplyr::as_tibble() %>% dplyr::mutate(band = c("sr_band1", "sr_band2",
         "sr_band3", "sr_band4", "sr_band5", "sr_band7")) %>%
     dplyr::select(band, wavelength, substrate, vegetation, dark)
 
@@ -107,11 +107,16 @@ END_MEMBERS_LANDSAT_8 <- c(0.482600, 0.217556, 0.107935, 0.085274,
                            0.654600, 0.542132, 0.066796, 0.026065,
                            0.864600, 0.698451, 0.639724, 0.010515,
                            1.609000, 0.836586, 0.219278, 0.002342,
-                           2.201000, 0.741504, 0.102166, 0.001322) %>% 
+                           2.201000, 0.741504, 0.102166, 0.001322) %>%
     matrix(ncol = 4, byrow = TRUE, dimnames = list(NULL, c_names)) %>%
-    dplyr::as_tibble() %>% dplyr::mutate(band = c("sr_band2", "sr_band3", 
+    dplyr::as_tibble() %>% dplyr::mutate(band = c("sr_band2", "sr_band3",
         "sr_band4", "sr_band5", "sr_band6", "sr_band7")) %>%
     dplyr::select(band, wavelength, substrate, vegetation, dark)
+
+
+usethis::use_data(END_MEMBERS_LANDSAT_7, END_MEMBERS_LANDSAT_8, SPECS_L8_SR,
+                  SPECS_MOD13Q1, internal = TRUE, overwrite = TRUE)
+
 
 # metadata of the images used to build the bricks
 landsat_path <- "/home/alber/landsat8"
@@ -125,16 +130,12 @@ brick_from   <- paste0(2013:2016, "-08-01") %>% rep(times = length(brick_scene))
 brick_to     <- paste0(2014:2017, "-07-30") %>% rep(times = length(brick_scene)) %>% lubridate::date() %>% as.list()
 brick_scene  <- brick_scene %>% rep(each = length(2013:2016)) %>% as.list()
 BRICK_IMAGES <- purrr::pmap(list(brick_scene, brick_from, brick_to), function(scene, from, to){
-    brick_imgs <- build_brick_tibble2(landsat_path, modis_path, scene_shp, tile_shp,
-                                     scenes = scene, from = from,to = to, 
+    build_brick_tibble2(landsat_path, modis_path, scene_shp, tile_shp,
+                                     scenes = scene, from = from,to = to,
                                      add_neighbors = FALSE) %>%
         dplyr::mutate(year = lubridate::year(img_date)) %>%
         return()
 }) %>% dplyr::bind_rows() %>% ensurer::ensure_that(nrow(.) > 0, err_desc = "Images not found!")
 
 
-
-
-
-usethis::use_data(END_MEMBERS_LANDSAT_7, END_MEMBERS_LANDSAT_8, SPECS_L8_SR, 
-    SPECS_MOD13Q1, BRICK_IMAGES, internal = TRUE, overwrite = TRUE)
+usethis::use_data(BRICK_IMAGES, internal = FALSE, overwrite = TRUE)

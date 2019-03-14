@@ -4,7 +4,8 @@
 \alias{gdal_merge}
 \title{Convert raster between formats}
 \usage{
-gdal_merge(input_files, out_filename = NULL, of = NULL,
+gdal_merge(input_files, out_filename = tempfile(pattern =
+  "gdal_merge_out_", fileext = ".tif"), of = NULL,
   creation_option = NULL, ot = NULL, ps = NULL, tap = FALSE,
   ul_lr = NULL, v = FALSE, separate = FALSE, pct = FALSE,
   nodata_value = NULL, a_nodata = NULL, init = NULL,
@@ -42,7 +43,7 @@ c('NAME1=VALUE1', 'NAME2=VALUE2').}
 
 \item{createonly}{A length-one logical. The default is FALSE.}
 
-\item{dry_run}{A length-one logical. The default is FALSE.}
+\item{dry_run}{A length-one logical. Do not run, just print the sytem call.}
 }
 \value{
 A length-one character. out_filename.

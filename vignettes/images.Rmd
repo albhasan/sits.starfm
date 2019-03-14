@@ -21,8 +21,8 @@ library(kableExtra)
 library(knitr)
 library(ggplot2)
 
-setwd("/home/alber/Documents/data/experiments/l8mod-fusion/Rpackage/sits.starfm")
-devtools::load_all()
+#setwd("/home/alber/Documents/data/experiments/l8mod-fusion/Rpackage/sits.starfm")
+#devtools::load_all()
 
 ```
 

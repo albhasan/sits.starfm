@@ -22,7 +22,7 @@
 #' @param verbose               A length-one logical. Generate a verbose output.
 #' The default is FALSE.
 #' @param quiet                 A length-one logical. The default is FALSE.
-#' @param dry_run               A length-one logical. The default is FALSE.
+#' @param dry_run               A length-one logical. Do not run, just print the sytem call.
 #' @return out_filename A length-one character.
 #' @export
 gdal_calc <- function(input_files,
@@ -93,7 +93,7 @@ gdal_calc <- function(input_files,
 #' @param a_nodata  A length-one numeric.
 #' @param init      A numeric.
 #' @param createonly A length-one logical. The default is FALSE.
-#' @param dry_run               A length-one logical. The default is FALSE.
+#' @param dry_run   A length-one logical. Do not run, just print the sytem call.
 #' @return          A length-one character. out_filename.
 #' @export
 gdal_merge <- function(input_files,
@@ -189,6 +189,7 @@ gdal_merge <- function(input_files,
 #' @param norat     A length-one logical. The default is FALSE.
 #' @param oo     A character. Open options for input files e.g.
 #' c('NAME1=VALUE1', 'NAME2=VALUE2').
+#' @param dry_run   A length-one logical. Do not run, just print the sytem call.
 #' @return          A length-one character. out_filename.
 gdal_translate <- function(input_files,
     out_filename = tempfile(pattern = "gdal_translate_out_", fileext = ".tif"),
@@ -340,6 +341,7 @@ gdal_translate <- function(input_files,
 #' @param setci        A length-one logical. The default is FALSE.
 #' @param oo           A character. e.g. c('NAME1=VALUE1', 'NAME2=VALUE2')
 #' @param doo          A character. e.g. c('NAME1=VALUE1', 'NAME2=VALUE2')
+#' @param dry_run      A length-one logical. Do not run, just print the sytem call.
 #' @return out_filename A length-one character.
 gdal_warp <- function(input_files,
                       out_filename = tempfile(pattern = "gdal_warp_out_", fileext = ".tif"),
@@ -473,8 +475,27 @@ gdal_warp <- function(input_files,
 #'
 #' @param input_files           A character. Paths to the image files.
 #' @param out_filename          A length-one character. The path to the
-#' destination file. The default is a temporal file.
-#
+#' destination file.
+#' @param tileindex             A length-one character. A tile index field name.
+#' @param resolution            A length-one character.
+#' @param target_extent         A length-four numeric.
+#' @param target_resolution     A length-two numeric.
+#' @param tap                   A length-one logical.
+#' @param separate              A length-one logical.
+#' @param band                  An integer.
+#' @param subdataset            A length-one integer.
+#' @param q                     A length-one logical. Disable the progress bar.
+#' @param optimise              A length-one character.
+#' @param addalpha              A length-one logical.
+#' @param hidenodata            A length-one logical.
+#' @param srcnodata             A numeric.
+#' @param vrtnodata             A numeric.
+#' @param a_srs                 A length-one character.
+#' @param resampling            A length-one character.
+#' @param oo                    A length-one character.
+#' @param input_file_list       A length-one character. Path to a text file of file paths.
+#' @param overwrite             A length-one logical.
+#' @param dry_run               A length-one logical. Do not run, just print the sytem call.
 #' @return out_filename A length-one character.
 #' @export
 gdalbuildvrt <- function(input_files,
@@ -499,7 +520,7 @@ gdalbuildvrt <- function(input_files,
     if (!is.null(resolution))
         params <- append(params, paste0("-resolution ", resolution))
     if (!is.null(target_extent))
-        params <- append(params, paste("-te", paste(extent_output, collapse = " ")))
+        params <- append(params, paste("-te", paste(target_extent, collapse = " ")))
     if (!is.null(band))
         params <- append(params, paste("-b", paste(band, sep = " ")))
     if (!is.null(subdataset))
@@ -524,7 +545,7 @@ gdalbuildvrt <- function(input_files,
         params <- append(params, "-q")
     if (addalpha)
         params <- append(params, "-addalpha")
-    if (hidenodat)
+    if (hidenodata)
         params <- append(params, "-hidenodata")
     if (overwrite)
         params <- append(params, "-overwrite")
@@ -579,9 +600,9 @@ get_number_of_bands <- function(filepath) {
 }
 
 .is_extent_valid <- function(ext){
-    if (is.atomic(res))
+    if (is.atomic(ext))
         return(is.numeric(ext) && length(ext) == 4)
-    if (is.list(res))
+    if (is.list(ext))
         return(vapply(ext, .is_extent_valid, logical(1)))
     return(FALSE)
 }

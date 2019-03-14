@@ -4,17 +4,17 @@
 \alias{gdal_calc}
 \title{Do calculations on images.}
 \usage{
-gdal_calc(input_files, out_filename = NULL, expression,
-  band_number = NULL, dstnodata = NULL, data_type = NULL,
-  out_format = NULL, creation_option = NULL, all_bands = NULL,
-  overwrite = FALSE, verbose = FALSE, quiet = FALSE,
-  dry_run = FALSE)
+gdal_calc(input_files, out_filename = tempfile(pattern =
+  "gdal_calc_out_", fileext = ".tif"), expression, band_number = NULL,
+  dstnodata = NULL, data_type = NULL, out_format = NULL,
+  creation_option = NULL, all_bands = NULL, overwrite = FALSE,
+  verbose = FALSE, quiet = FALSE, dry_run = FALSE)
 }
 \arguments{
 \item{input_files}{A character. Paths to the image files.}
 
 \item{out_filename}{A length-one character. The path to the
-destination file. The default is out.tif in the current working directory.}
+destination file.}
 
 \item{expression}{A character. The expresion to compute on the
 images using upper case A-Z letters to represent the images in the same order
@@ -43,7 +43,7 @@ The default is FALSE.}
 
 \item{quiet}{A length-one logical. The default is FALSE.}
 
-\item{dry_run}{A length-one logical. The default is FALSE.}
+\item{dry_run}{A length-one logical. Do not run, just print the sytem call.}
 }
 \value{
 out_filename A length-one character.

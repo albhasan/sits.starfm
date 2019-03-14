@@ -59,9 +59,9 @@ NULL
 
 
 
-#' .data 
+#' .data
 #'
-#' 
+#'
 #'
 #' @importFrom dplyr .data
 #' @name .data
@@ -73,9 +73,8 @@ NULL
 .onAttach <- function(libname, pkgname) {
     if (!exists("logger") || is.null(logger) || is.na(logger)) {
         logger                 <- log4r::create.logger()
-        log4r::logfile(logger) <- file.path(paste0("sits.starfm_", system('uname -n', intern = TRUE),".log"))
+        log4r::logfile(logger) <- file.path(path.expand("~"), paste0("sits.starfm_", system('uname -n', intern = TRUE),".log"))
         log4r::level(logger)   <- "DEBUG"
-        log4r::info(logger, "...............................................................................")
     }
     packageStartupMessage(sprintf("sits.starfm. Logger file: %s", logger$logfile))
 }
