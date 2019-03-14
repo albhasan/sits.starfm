@@ -514,6 +514,7 @@ gdalbuildvrt <- function(input_files,
         input_files <- input_files[!is.na(input_files)]
     }
     stopifnot(.is_input_file_valid(input_files))
+    params <- character()
 
     if (!is.null(tileindex))
        params <- append(params, paste0("-tileindex ", tileindex))
