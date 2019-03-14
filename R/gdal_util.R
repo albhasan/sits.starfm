@@ -542,6 +542,8 @@ gdalbuildvrt <- function(input_files,
         params <- append(params, paste("-input_file_list", input_file_list))
     if (tap)
         params <- append(params, "-tap")
+    if (separate)
+        params <- append(params, "-separate")
     if (q)
         params <- append(params, "-q")
     if (addalpha)
