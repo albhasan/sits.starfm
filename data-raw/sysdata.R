@@ -137,5 +137,21 @@ BRICK_IMAGES <- purrr::pmap(list(brick_scene, brick_from, brick_to), function(sc
         return()
 }) %>% dplyr::bind_rows() %>% ensurer::ensure_that(nrow(.) > 0, err_desc = "Images not found!")
 
+# add raster extent
+tmp_img_path <- BRICK_IMAGES %>% 
+    dplyr::select(sat_image, files) %>% 
+    tidyr::unnest() %>% 
+    dplyr::group_by(sat_image) %>% 
+    dplyr::slice(dplyr::n()) %>%
+    dplyr::ungroup() %>% 
+    dplyr::pull(file_path)
+BRICK_IMAGES$img_extent <- lapply(tmp_img_path, function(x){
+    ext <- x %>% 
+        raster::raster() %>% 
+        raster::extent() %>% 
+        attributes()
+    ext[["class"]] <- NULL
+    return(unlist(ext))
+})
 
 usethis::use_data(BRICK_IMAGES, internal = FALSE, overwrite = TRUE)
