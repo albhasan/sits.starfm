@@ -154,5 +154,15 @@ BRICK_IMAGES$img_extent <- lapply(tmp_img_path, function(x){
     ext[["class"]] <- NULL
     return(unlist(ext))
 })
+BRICK_IMAGES %>% 
+    dplyr::select(sat_image, scene, files) %>% 
+    tidyr::unnest() %>% 
+    dplyr::mutate(
+        scene_sat_image = purrr::map_chr(.$sat_image, function(x){unlist(stringr::str_split(x, "_"))[3]}),
+        scene_file =      purrr::map_chr(.$file_path, function(x){unlist(stringr::str_split(basename(x), "_"))[3]})
+    ) %>%
+    dplyr::mutate(test_res = all.equal(scene, scene_sat_image, scene_file)) %>% 
+    dplyr::pull(test_res) %>% 
+    ensurer::ensure_that(all(.), err_desc = "Scene missmatch")
 
 usethis::use_data(BRICK_IMAGES, internal = FALSE, overwrite = TRUE)
