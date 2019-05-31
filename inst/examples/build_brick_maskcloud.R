@@ -1,10 +1,9 @@
 #!/usr/bin/env Rscript
 # Build a brick by piling and cloud-masking Landsat 8 images
 setwd("/home/alber/Documents/data/experiments/l8mod-fusion/Rpackage/sits.starfm")
-suppressMessages(suppressPackageStartupMessages(library(tidyverse)))
-suppressMessages(suppressPackageStartupMessages(library(optparse )))
-suppressMessages(suppressPackageStartupMessages(library(devtools )))
-devtools::load_all()
+suppressMessages(suppressPackageStartupMessages(library(dplyr)))
+suppressMessages(suppressPackageStartupMessages(library(optparse)))
+suppressMessages(suppressPackageStartupMessages(library(sits.starfm)))
 
 option_list = list(
     make_option(c("-s", "--scene"), type = "character", default = NULL, 
@@ -48,6 +47,9 @@ scene_shp    <- "/home/alber/Documents/data/experiments/l8mod-fusion/data/shp/wr
 tile_shp     <- "/home/alber/Documents/data/experiments/l8mod-fusion/data/shp/modis-tiles.shp"
 temp_dir     <- "/home/alber/shared/tmp_maskcloud"
 no_data      <- -9999
+gdal_format  <- "GTiff"
+gdal_options  <- "BIGTIFF=YES"
+
 # handle temporal directories
 tmp_dir <- temp_dir %>% file.path(paste("L8MOD", brick_scene, lubridate::year(brick_to), sep = "_"))
 if (!dir.exists(tmp_dir)) dir.create(tmp_dir)
@@ -66,7 +68,7 @@ brick_imgs <- build_brick_tibble2(landsat_path, modis_path, scene_shp, tile_shp,
     dplyr::mutate(masked = purrr::map(1:nrow(.), 
         function(rid, brick_imgs, brick_bands, out_dir, tmp_dir){
             param <- list(dstnodata = no_data, 
-                out_format = "GTiff", 
+                out_format = gdal_format, 
                 creation_option = NULL,
                 fileext = ".tif")
             masked_neg <- brick_imgs %>% dplyr::slice(rid) %>% 
@@ -131,7 +133,7 @@ mix_brick <- brick_imgs %>% tidyr::unnest(mixture) %>%
                out_fn <- file.path(out_dir, paste(prefix, img_md["path_row"],
                                    img_date, img_band, "STACK_BRICK.tif", sep = '_'))
                x %>% gdal_merge(out_filename = out_fn, separate = TRUE, 
-                                of = "GTiff", creation_option = "BIGTIFF=YES",
+                                of = gdal_format, creation_option = gdal_options,
                                 init = no_data, a_nodata = no_data) %>%
                    return()
            }, out_dir = brick_path, 
@@ -141,6 +143,34 @@ mix_brick <- brick_imgs %>% tidyr::unnest(mixture) %>%
     dplyr::mutate(n_img = get_number_of_bands(value)) %>%
     print() %>%
     ensurer::ensure_that(all(.$n_img == brick_n_img))
+
+# build the cloud mask brick
+brick_imgs <- brick_imgs %>%
+    dplyr::mutate(pixel_qa = purrr::map_chr(.$files, function(x){
+        x %>% dplyr::mutate(fname = basename(file_path)) %>%
+            dplyr::filter(stringr::str_detect(fname, "_pixel_qa.tif$")) %>%
+            ensurer::ensure_that(nrow(.) == 1, err_desc = "Error while finding the QA band of image") %>%
+            dplyr::pull(file_path) %>%
+            return()
+    })) %>%
+    dplyr::mutate(cloud_mask = purrr::map_chr(.$pixel_qa, function(x){
+        x %>%
+            gdal_calc(
+                out_filename <- tempfile(pattern = paste0(tools::file_path_sans_ext(basename(x)), '_'),
+                                         tmpdir = tmp_dir, fileext = ".tif"),
+                expression = "((numpy.bitwise_and(A, 40) != 0) * 1).astype(int16)",
+                dstnodata = no_data,
+                out_format = gdal_format,
+                creation_option = gdal_options)
+    }))
+img_date <- brick_imgs %>% dplyr::pull(img_date) %>% sort() %>% dplyr::first() %>%
+    as.POSIXct(format = "%Y%m%d") %>% format("%Y-%m-%d")
+cloud_brick <- brick_imgs %>% dplyr::pull(cloud_mask) %>% pile_files(
+    out_fn <- file.path(brick_path, paste(brick_prefix, brick_scene, img_date, "cloud", "STACK_BRICK.tif", sep = '_')),
+    gdal_format = gdal_format,
+    no_data = no_data,
+    gdal_options = gdal_options)
+print(cloud_brick)
 
 print("Finished!")
 

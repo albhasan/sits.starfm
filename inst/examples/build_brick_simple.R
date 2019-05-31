@@ -106,5 +106,7 @@ brick_imgs %>% tidyr::unnest(mixture) %>%
 # remove 
 brick_imgs %>% dplyr::pull(mixture) %>% unlist() %>% file.remove()
 
+print("CLOUD BRICKS: copy the cloud bricks from maskcloud") 
+
 print("Finished!")
 
