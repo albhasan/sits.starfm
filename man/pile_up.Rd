@@ -5,7 +5,7 @@
 \title{Pile images into files by band.}
 \usage{
 pile_up(brick_imgs, file_col, brick_bands, brick_prefix, brick_scene,
-  out_dir, no_data = -9999)
+  out_dir, no_data, gdal_options)
 }
 \arguments{
 \item{brick_imgs}{A tibble of images.}
@@ -21,6 +21,8 @@ pile_up(brick_imgs, file_col, brick_bands, brick_prefix, brick_scene,
 \item{out_dir}{A character. Path to a directory for storing results.}
 
 \item{no_data}{A length-one numeric. The value for no data.}
+
+\item{gdal_options}{A character. Options passed to gdal for raster creation.}
 }
 \value{
 A tibble of the matching PRODES dates and NA for the
