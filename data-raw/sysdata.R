@@ -166,3 +166,4 @@ BRICK_IMAGES %>%
     ensurer::ensure_that(all(.), err_desc = "Scene missmatch")
 
 usethis::use_data(BRICK_IMAGES, internal = FALSE, overwrite = TRUE)
+
