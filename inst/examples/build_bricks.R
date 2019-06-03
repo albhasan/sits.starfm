@@ -1,15 +1,13 @@
 # build bricks
 
 library(dplyr)
-library(purrr)
-library(devtools)
-setwd("/home/alber/Documents/data/experiments/l8mod-fusion/Rpackage/sits.starfm")
-devtools::load_all()
-dump_file <- file.path(paste0("last.dump_",
-                              stringr::str_replace(
-                                  system('uname -n', intern = TRUE),
-                                  "-", "_")))
+library(sits.starfm)
+
+base_path <- "/home/alber/Documents/data/experiments/l8mod-fusion"
+
 dump_and_quit <- function() {
+    dump_file <- base_path %>% file.path("Rpackage", "sits.starfm",
+        paste0("last.dump_", stringr::str_replace(system('uname -n', intern = TRUE), "-", "_")))
     # Save debugging info to file last.dump.rda
     dump.frames(dumpto = dump_file, to.file = TRUE)
     # Quit R with error status
@@ -35,6 +33,8 @@ logger                 <- log4r::create.logger()
 log4r::logfile(logger) <- file.path(paste0("build_bricks_", system('uname -n', intern = TRUE),".log"))
 log4r::level(logger)   <- "DEBUG"
 
+
+# Get a list of images required for building the brick.
 build_landsat_brick_tibble <- function(landsat_path, brick_path, brick_scene,
                                 brick_from, brick_to, cloud_threshold, n_best,
                                 img_per_year, temp_dir, prodes_year_start){
@@ -64,10 +64,11 @@ build_landsat_brick_tibble <- function(landsat_path, brick_path, brick_scene,
               dplyr::slice(1:n_best) %>% ensurer::ensure_that(nrow(.) == 4)
     return(l8_img)
 }
-
 brick_imgs <- build_landsat_brick_tibble(landsat_path, brick_path, brick_scene,
                                 brick_from, brick_to, cloud_threshold, n_best,
                                 img_per_year, temp_dir, prodes_year_start)
+
+# Match each image to the next one.
 brick_imgs$next_best <- lapply(1:nrow(brick_imgs), function(x, brick_imgs){
     res <- NA
     if (nrow(brick_imgs) > x) {
@@ -76,6 +77,7 @@ brick_imgs$next_best <- lapply(1:nrow(brick_imgs), function(x, brick_imgs){
     return(res)
 }, brick_imgs = brick_imgs)
 
+# Build a brick.
 for (row_n in 1:nrow(brick_imgs)) {
     sfm_files <- tibble::tibble(starfm = character(), t1_fine = character(),
                                 t1_coarse = character(),
@@ -100,8 +102,6 @@ for (row_n in 1:nrow(brick_imgs)) {
         if (!dir.exists(basename(out_filename))) {
             dir.create(basename(out_filename))
         }
-
-
  
         starfm_res <- run_starFM(img0_f = img0, img1_f = img1, band = band,
                                  out_filename = out_filename,
