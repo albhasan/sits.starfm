@@ -1,0 +1,660 @@
+
+#' @title Build a SITS brick using a fusion model (StarFM) to fill in the cloud gaps
+#' @author Alber Sanchez, \email{alber.ipia@@inpe.br}
+#' @description Build a SITS brick using a fusion odel (StarFM) to finnin the gaps.
+#'
+#' @param landsat_path A length-one character. Path to a direcotry of Landsat images.
+#' @param modis_path   A length-one character. Path to a direcotry of MODIS images.
+#' @param scene_shp    A length-one character. Path to a polygon shapefile of the boundaries of Landsat's scenes.
+#' @param tile_shp     A length-one character. Path to a polygon shapefile of the boundaries of MODIS's scenes.
+#' @param brick_scene  A length-one character. A Landsat's scene id. i.e. "225063"
+#' @param brick_year   A length-one numeric. A PRODES year.
+#' @param brick_bands  A character. The Landsat's bands to use for building the brick.
+#' @param brick_path   A length-one character. A path to store the resulting bricks.
+#' @param cloud_threshold A length-one numeric. The approximated proportion of clouds in the brick.
+#' @param img_per_year A length-one numeric. The number of images in a brick-year. The default is 23.
+#' @param n_best_img   A length-one numeric. Use only only this number of images. Best means less cloudy.
+#' @param image_step   A length-one numeric. The number of days between images.
+#' @param temp_dir     A length-one character. A path to a folder to store temporal files.
+#' @param no_data      A length-one numeric. The value for no data.
+#' @param gdal_options A character. Options passed to gdal for raster creation.
+#' @return             A tibble
+#' @export
+build_brick <- function(landsat_path, modis_path, scene_shp, tile_shp,
+                        brick_scene, brick_year, brick_bands,
+                        brick_path, cloud_threshold, n_best_img = 23,
+                        img_per_year = 23, image_step = 16, temp_dir = NULL,
+                        no_data = -9999, gdal_options = c("TILED=YES",
+                                                          "COPY_SRC_OVERVIEWS=YES",
+                                                          "COMPRESS=LZW")) {
+
+    input_vec <- c(landsat_path = landsat_path,
+                   modis_path = modis_path,
+                   scene_shp = scene_shp,
+                   tile_shp = tile_shp,
+                   brick_scene = brick_scene,
+                   brick_year = brick_year,
+                   brick_bands = paste(brick_bands, collapse = ","),
+                   brick_path = brick_path,
+                   cloud_threshold = cloud_threshold,
+                   n_best_img = n_best_img,
+                   img_per_year = img_per_year,
+                   image_step = image_step,
+                   temp_dir = temp_dir)
+    log4r::info(logger, c("Brick arguments...",
+                          paste(names(input_vec), input_vec, sep = " = ")))
+
+    log4r::info(logger, "Validating inputs...")
+    if (is.null(temp_dir))
+        temp_dir <- tempdir()
+    tmp_dir <- temp_dir %>%
+        file.path(paste("L8MOD", brick_scene, brick_year, sep = "_"))
+    starfm_dir <- temp_dir %>%
+        file.path(paste("starfm", brick_scene, brick_year, sep = "_"))
+    if (!dir.exists(tmp_dir))
+        tmp_dir %>% dir.create()
+    if (!dir.exists(starfm_dir))
+        starfm_dir %>% dir.create()
+
+    log4r::info(logger, "Assembling bricks' data...")
+    brick_tb <- suppressWarnings(
+        build_brick_tibble(landsat_path = landsat_path,
+                           modis_path = modis_path, scene_shp = scene_shp, tile_shp = tile_shp,
+                           scenes = brick_scene, from = paste(brick_year - 1, "08-01", sep = "-"),
+                           to = paste(brick_year, "09-30", sep = "-"), max_ts_hole = 1,
+                           min_miss_ratio = 0.95)
+    )
+
+    log4r::info(logger, "Get brick's images...")
+    brick_imgs <- brick_tb %>%
+        dplyr::group_by(scene, prodes_year) %>%
+        tidyr::nest(.key = "ts") %>%
+        dplyr::filter(scene %in% brick_scene, prodes_year %in% brick_year) %>%
+        dplyr::pull(ts) %>% dplyr::bind_rows() %>% dplyr::arrange(img_date) %>%
+        ensurer::ensure_that(nrow(.) > 0, err_desc =
+                                 sprintf("Unable to build a brick for %s - %s",
+                                         brick_scene, brick_year)) %>%
+        dplyr::mutate(scene = substr(sat_image, 11, 16))
+
+    log4r::info(logger, "Add extra images...")
+    br_img_last_date <- brick_imgs %>% dplyr::slice(nrow(.)) %>%
+        dplyr::pull(img_date)
+    brick_imgs <- brick_tb %>%
+        dplyr::filter(scene %in% brick_scene,
+                      img_date %in% (br_img_last_date + image_step)) %>%
+        dplyr::select(img_date, sat_image) %>% dplyr::bind_rows(brick_imgs) %>%
+        dplyr::arrange(img_date)
+    if (nrow(brick_imgs) < img_per_year) {
+        stop(sprintf("Not enough images for building a brick: %s / %s", nrow(brick_imgs), img_per_year))
+    }
+
+    log4r::info(logger, "Find the next best image to compute StarFM...")
+    brick_imgs$next_best <- suppressWarnings(
+        lapply(1:nrow(brick_imgs), function(x, brick_imgs, cloud_threshold) {
+            brick_imgs %>% get_next_image(ref_row_number = x,
+                                          cloud_threshold = cloud_threshold) %>%
+                return()
+        }, brick_imgs = brick_imgs, cloud_threshold = cloud_threshold))
+
+    log4r::info(logger, "Remove extra images...")
+    brick_imgs <- brick_imgs %>% dplyr::slice(1:img_per_year)
+
+    log4r::info(logger, "Iterating over images...")
+    sfm_list <- list()
+    for (row_n in 1:nrow(brick_imgs)) {
+        log4r::info(logger, sprintf("    Row %s - Getting images t0 and t1", row_n))
+
+        # store the results
+        sfm_files <- tibble::tibble(starfm = character(), t1_fine = character(),
+                                    t1_coarse = character(),
+                                    t0_fine = character(),
+                                    t0_coarse = character(),
+                                    sfm_conf = character())
+
+        img0 <- brick_imgs %>% dplyr::slice(row_n)
+        img1 <- brick_imgs %>% dplyr::slice(row_n) %>% dplyr::pull(next_best)
+
+        # validation
+        if (all(is.na(img1)) || is.na(dplyr::bind_rows(img1)$sat_image)) {
+            log4r::warn(logger, sprintf("    Row %s - No suitable t1 image for
+                                        scene %s on %s", row_n, brick_scene,
+                                        img0$img_date))
+            warning(sprintf("No suitable Landsat image was found for computing
+                            the fusion model for scene %s on %s", brick_scene,
+                            img0$img_date))
+            sfm_list[[length(sfm_list) + 1]] <- sfm_files
+            next()
+        }
+        img1 <- img1 %>% dplyr::bind_rows()
+
+        # NOTE: Is the mean representative of the MODIS coverage of a Landsat image?
+        mod_cloud_cover <- img0 %>% dplyr::pull(tile) %>% dplyr::bind_rows() %>%
+            dplyr::pull(cloud_cov) %>% mean()
+
+        if (mod_cloud_cover > cloud_threshold) {
+            log4r::warn(logger, sprintf("    Row %s - Cloudy MODIS images for
+                                        scene %s on %s", row_n, brick_scene,
+                                        img0$img_date))
+            warning(sprintf("MODIS images are too cloudy for scene %s on %s",
+                            brick_scene, img0$img_date))
+            sfm_list[[length(sfm_list) + 1]] <- sfm_files
+            next()
+        }
+        if (is.na(img0$sat_image)) {
+            log4r::warn(logger, sprintf("    Row %s - Landsat image t0 is
+                                        missing (scene %s, date %s)", row_n,
+                                        brick_scene, img0$img_date))
+            warning(sprintf("Landsat Image (scene %s and date %s) is missing!",
+                            brick_scene, img0$img_date))
+        }
+
+        # run the fusion ----
+        for (band in brick_bands) {
+            log4r::info(logger, sprintf("    Row %s - Processing band %s",
+                                        row_n, band))
+            out_filename = file.path(starfm_dir,
+                                     stringr::str_c(
+                                         stringr::str_c("starfm", brick_scene,
+                                                        img0$img_date, band,
+                                                        sep = "_"), ".bin"))
+            log4r::debug(logger, paste("StarFM file name: ", out_filename))
+            log4r::info(logger, sprintf("    Row %s - Running StarFM...", row_n))
+
+            starfm_res <- run_starFM(img0_f = img0, img1_f = img1, band = band,
+                                     out_filename = out_filename,
+                                     tmp_dir = tmp_dir)
+
+            log4r::debug(logger, sprintf("    Row %s - Done running StarFM...",
+                                         row_n))
+            sfm_files <- sfm_files %>%
+                dplyr::add_row(starfm = starfm_res["starfm"],
+                               t1_fine = starfm_res["t1_fine"],
+                               t1_coarse = starfm_res["t1_coarse"],
+                               t0_fine = starfm_res["t0_fine"],
+                               t0_coarse = starfm_res["t0_coarse"],
+                               sfm_conf = starfm_res["sfm_conf"])
+        }
+        log4r::info(logger, sfm_files)
+        sfm_list[[length(sfm_list) + 1]] <- sfm_files
+    }
+    if (length(sfm_list) != img_per_year) {
+        log4r::error("Missing fusion images!")
+        log4r::info("Logging sfm_list...")
+        log4r::info(sfm_list)
+        brick_imgs_fp <- file.path(starfm_dir,
+                                   paste0(paste("brick_imgs", brick_scene,
+                                                brick_year, sep = "_"),
+                                          ".Rdata"))
+        log4r::info(paste("Saving brick_imgs to", brick_imgs_fp))
+        save(brick_imgs, file = brick_imgs_fp)
+        stop("Missing fusion images!")
+    }
+    brick_imgs$starfm <- sfm_list
+    log4r::info(logger, "Finished iterating")
+
+    log4r::info(logger, "Filling in the clouds...")
+    brick_imgs$filled <- lapply(1:nrow(brick_imgs), function(x, brick_imgs) {
+        fill_clouds(img = dplyr::slice(brick_imgs, x), tmp_dir = tmp_dir)
+    }, brick_imgs = brick_imgs)
+    log4r::debug(logger, paste(c("Filled images...", unlist(brick_imgs$filled))))
+
+    log4r::info(logger, "Stacking up filled images...")
+    filled_tb <- brick_imgs %>% tidyr::unnest(filled) %>%
+        dplyr::mutate(band = get_landsat_band(filled))
+
+    first_img_date <- brick_imgs %>% dplyr::slice(1) %>%
+        dplyr::pull(img_date) %>% dplyr::first()
+
+    brick_path <- lapply(brick_bands, function(x, filled_tb, brick_path,
+                                               first_img_date){
+
+        band_short_name <- SPECS_L8_SR %>% dplyr::filter(band_designation == x) %>%
+            dplyr::pull(short_name) %>% dplyr::first() %>%
+            stringr::str_replace(" ", "_") %>% tolower()
+        out_fn <- file.path(brick_path,
+                            paste0(paste("LC8SR-MOD13Q1-STARFM", brick_scene,
+                                         first_img_date, band_short_name,
+                                         "STACK_BRICK", sep = "_"), ".tif" ))
+
+        # NOTE: use filled_tb$filled because dplyr::pull drops the NAs and we don't know where to repeat images!!!!!!!!!!!!
+        paths <- filled_tb %>% dplyr::filter(band %in% c(x, NA)) %>%
+            .$filled %>% zoo::na.locf() %>%
+            gdal_merge(out_filename = out_fn, separate = TRUE, of = "GTiff",
+                       creation_option = gdal_options, init = no_data,
+                       a_nodata = no_data)
+        return(paths)
+    }, filled_tb = filled_tb, brick_path = brick_path, first_img_date = first_img_date)
+    #save(brick_path, file = file.path(tmp_dir, "brick_path.Rdata"))
+
+    brick_imgs_fp <- file.path(starfm_dir,
+                               paste0(paste("brick_imgs", brick_scene,
+                                            brick_year, sep = "_"), ".Rdata"))
+    save(brick_imgs, file = brick_imgs_fp)
+
+    log4r::info(logger, sprintf("Finished scene %s year %s", brick_scene, brick_year))
+    return(brick_imgs)
+}
+
+
+#' @title Build a tibble with the data required to create bricks.
+#' @author Alber Sanchez, \email{alber.ipia@@inpe.br}
+#' @description Build a tibble with the data required to create bricks.
+#'
+#' @param landsat_path A length-one character. Path to a directory of images.
+#' @param modis_path   A length-one character. Path to a directory of images.
+#' @param scene_shp    A length-one character. Path to a polygon shapefile of
+#' Landsat scene borders.
+#' @param tile_shp     A length-one character. Path to a polygon shapefile of
+#' MODIS tile borders.
+#' @param scenes       A character. Constrain to these scenes (e.g. 233067)
+#' @param from         A character. Constrain to this starting date.
+#' @param to           A character. Constrain to this ending date.
+#' @param max_ts_hole  A length-one numeric. Maximum number of missing
+#' consecutive images allowed in a time series
+#' @param min_miss_ratio A length-one numeric. Minimum proportion of missing
+#' images allowed in a time series.
+#' @return             A tibble.
+#' @export
+build_brick_tibble <- function(landsat_path, modis_path, scene_shp, tile_shp,
+                               scenes = NULL, from = NULL, to = NULL,
+                               max_ts_hole = 1, min_miss_ratio = 0.95){
+
+    if (!all(dir.exists(landsat_path), dir.exists(modis_path))) {
+        stop("Directory not found!")
+    }
+    if (!all(file.exists(scene_shp), file.exists(tile_shp))) {
+        stop("File not found!")
+    }
+
+    # Get files into a tibble & filter
+    pattern_landsat <- NULL
+    if (!is.null(scenes) && is.vector(scenes) && length(scenes) > 0) {
+        scene_neigh <- scenes %>% get_tile_neighbors() %>% c(scenes) %>%
+            unique() %>% .[!is.na(.)]
+        if (length(scene_neigh) > 1) {
+            scene_neigh <- paste0('(', paste(scene_neigh, collapse = '|'), ')')
+        }
+        pattern_landsat <- stringr::str_c("^LC08_L1[TG][PTS]_", scene_neigh,
+                                          ".*(tif|_MTL\\.txt)$")
+    }
+    l8_img <- landsat_path %>% build_landsat_tibble(pattern = pattern_landsat,
+                                                    from = from, to = to)
+
+    # check brick completeness & spot missing images
+    l8_img <- l8_img %>% build_ts() %>%
+        dplyr::mutate(brick_ratio = n_img/n_expected) %>%
+        dplyr::filter(brick_ratio > min_miss_ratio, max_hole <= max_ts_hole) %>%
+        dplyr::select(tile, prodes_year, ts) %>% tidyr::unnest(ts) %>%
+        ensurer::ensure_that(nrow(.) > 0, err_desc = sprintf(
+            "Not enough images to to build a brick for %s from %s to %s",
+            scenes, from, to)) %>%
+        dplyr::select(sat_image, files, tile, img_date, prodes_year, neigh,
+                      cloud_cov)
+
+    # match L8 scenes to MOD tiles (in space)
+    l8mod_sp <- match_tiles2scenes(scene_path = scene_shp,
+                                   tile_path = tile_shp,
+                                   scenes = unique(dplyr::pull(l8_img, tile)))
+    l8mod_sp$tile <- lapply(l8mod_sp$tile, function(x) {dplyr::pull(x, tile)})
+    l8_img <- l8_img %>% dplyr::rename(scene = tile) %>%
+        dplyr::inner_join(l8mod_sp, by = 'scene')
+
+    # match L8 scenes to MOD tiles (in time)
+    tiles <- l8_img %>% dplyr::pull(tile) %>% unlist() %>% unique()
+    if (length(tiles) == 0) {
+        return(NA)
+    }else if (length(tiles) > 1) {
+        tiles <- paste0('(', paste(tiles, collapse = '|'), ')')
+    }
+    pattern_mod <- stringr::str_c('^MOD13Q1\\.A201[2-8][0-9]{3}\\.', tiles,
+                                  '.*hdf$')
+    mod_img <- modis_path %>% build_modis_tibble(pattern = pattern_mod,
+                                                 from = from, to = to)
+    l8_img$tile <- purrr::map2(l8_img$tile, l8_img$img_date, match_tile_date,
+                               img_tb = mod_img, untie = 0.001)
+    #mod_imgs <- l8_img %>% dplyr::pull(tile) %>% dplyr::bind_rows() %>%
+    #    dplyr::pull(sat_image)
+    #if (length(mod_imgs) != length(unique(mod_imgs)))
+    #    warning("Duplicated MODIS were related to LANDSAT images")
+    return(l8_img)
+}
+
+
+#' @title Build a tibble with the data required to create bricks.
+#' @author Alber Sanchez, \email{alber.ipia@@inpe.br}
+#' @description Build a tibble with the data required to create bricks.
+#'
+#' @param landsat_path A length-one character. Path to a directory of images.
+#' @param modis_path   A length-one character. Path to a directory of images.
+#' @param scene_shp    A length-one character. Path to a polygon shapefile of
+#' Landsat scene borders.
+#' @param tile_shp     A length-one character. Path to a polygon shapefile of
+#' MODIS tile borders.
+#' @param scenes       A character. Constrain to these scenes (e.g. 233067)
+#' @param from         A character. Constrain to this starting date.
+#' @param to           A character. Constrain to this ending date.
+#' @param add_neighbors A logical. Should neighbor images be considered?
+#' @return             A tibble.
+#' @export
+build_brick_tibble2 <- function(landsat_path, modis_path, scene_shp, tile_shp,
+                                scenes, from, to, add_neighbors){
+
+    if (!all(vapply(c(landsat_path, modis_path), dir.exists, logical(1)))) {
+        stop("Directory not found!")
+    }
+    if (!all(vapply(c(scene_shp, tile_shp), file.exists, logical(1)))) {
+        stop("File not found!")
+    }
+
+    # Get files into a tibble
+    pattern_landsat <- NULL
+    if (!is.null(scenes) && is.vector(scenes) && length(scenes) > 0) {
+        scene_neigh <- scenes
+        if (add_neighbors) {
+            scene_neigh <- scenes %>% get_tile_neighbors() %>% c(scenes) %>%
+                unique() %>% .[!is.na(.)]
+        }
+        if (length(scene_neigh) > 1) {
+            scene_neigh <- paste0('(', paste(scene_neigh, collapse = '|'), ')')
+        }
+        pattern_landsat <- stringr::str_c("^LC08_L1[TG][PTS]_", scene_neigh,
+                                          ".*(tif|_MTL\\.txt)$")
+    }
+    l8_img <- landsat_path %>% build_landsat_tibble(pattern = pattern_landsat,
+                                                    from = from, to = to)
+
+    # match L8 scenes to MOD tiles (in space)
+    l8mod_sp <- match_tiles2scenes(scene_path = scene_shp,
+                                   tile_path = tile_shp,
+                                   scenes = unique(dplyr::pull(l8_img, tile))) %>%
+        dplyr::mutate(tile = purrr::map(tile, function(x) {dplyr::pull(x, tile)}))
+    l8_img <- l8_img %>% dplyr::rename(scene = tile) %>%
+        dplyr::inner_join(l8mod_sp, by = 'scene')
+
+    # match L8 scenes to MOD tiles (in time)
+    tiles <- l8_img %>% dplyr::pull(tile) %>% unlist() %>% unique()
+    if (length(tiles) == 0) {
+        return(NA)
+    }else if (length(tiles) > 1) {
+        tiles <- paste0('(', paste(tiles, collapse = '|'), ')')
+    }
+    pattern_mod <- stringr::str_c('^MOD13Q1\\.A201[2-8][0-9]{3}\\.', tiles,
+                                  '.*hdf$')
+    mod_img <- modis_path %>% build_modis_tibble(pattern = pattern_mod,
+                                                 from = from, to = to)
+    l8_img <- l8_img %>% dplyr::mutate(tile = purrr::map2(l8_img$tile,
+                                                          l8_img$img_date, match_tile_date,
+                                                          img_tb = mod_img, untie = 0.001))
+
+    return(l8_img)
+}
+
+
+#' @title Group images into time series
+#' @author Alber Sanchez, \email{alber.ipia@@inpe.br}
+#' @description This function takes the input tibble of images and return a
+#' tibble grouped by tile (scene) and year.
+#'
+#' @param img_tb  A tible of images. It must have the fields tile, img_date,
+#' sat_image, and prodes_year
+#' @param prodes_year_start A length-one character. The start month and date of
+#' the PRODES year. The default is "-08-01"
+#' @param image_step        A length-one numeric. Number of days between images
+#' of the same place (temporal resolution). The default is 16.
+#' @return A tibble
+build_ts <- function(img_tb, prodes_year_start = "-08-01", image_step = 16) {
+    res <- img_tb %>% dplyr::group_by(tile, prodes_year) %>% tidyr::nest() %>%
+        dplyr::mutate(ts = purrr::map(data, add_missing_dates,
+                                      step = image_step,
+                                      prodes_start = prodes_year_start),
+                      n_img = purrr::map_int(ts, function(x) {
+                          sum(!is.na(x$sat_image))
+                      }), n_expected = purrr::map_int(ts, nrow),
+                      max_hole = purrr::map_int(ts, max_hole)) %>%
+        dplyr::select(-data)
+    return(res)
+}
+
+
+#' @title Compute a misture model.
+#' @author Alber Sanchez, \email{alber.ipia@@inpe.br}
+#' @description Compute vegetation indexes from bricks.
+#'
+#' @param file_paths   A character. Paths to files of a Landsat image.
+#' @param out_dir      A length-one character. Path to store the results.
+#' @param landsat_sat  A length-one character. The landsat satelite denomination e.g. '8'.
+#' @param no_data      A length-one numeric. The value for no data.
+#' @return             A character. Paths to the End member files.
+#' @export
+compute_mixture_model <- function(file_paths, out_dir, landsat_sat = '8', no_data = -9999){
+    # get misture model coefficients
+    coef_tb <- END_MEMBERS_LANDSAT_8
+    if (landsat_sat == '7') {
+        coef_tb <- END_MEMBERS_LANDSAT_7
+    }
+
+    # build tibble of parameters
+    model_tb <- file_paths %>% tibble::enframe(name = NULL) %>%
+        dplyr::rename(file_path = value) %>%
+        dplyr::mutate(band = get_landsat_band(file_path)) %>%
+        dplyr::filter(band %in% coef_tb$band) %>%
+        dplyr::right_join(coef_tb, by = "band") %>%
+        dplyr::arrange(band) %>%
+        ensurer::ensure_that(sum(is.na(file_paths)) == 0,
+                             err_desc = "Not enough band files!") %>%
+        ensurer::ensure_that(nrow(.) == nrow(coef_tb),
+                             err_desc = "File-band missmatch!")
+
+    # build file names for resulting files
+    member_names <- names(coef_tb)[-(1:2)]
+    dummy_name <- model_tb %>% dplyr::filter(band == "sr_band2") %>%
+        dplyr::pull(file_path) %>% basename() %>% stringr::str_split('_') %>%
+        unlist() %>% .[1:8]
+    out_fnames <- file.path(out_dir, paste(paste(dummy_name, collapse = "_"),
+                                           paste0(member_names, ".tif"), sep = '_'))
+    names(out_fnames) <- member_names
+
+    img_md <- get_landsat_metadata(model_tb$file_path[1])
+    vapply(member_names, function(member){
+        # util function
+        exp_nodata <- function(letter){
+            if(length(letter) == 1)
+                return(paste("(", letter, "!=", no_data, ")", sep = " ",collapse = " * "))
+            else(length(letter) > 1)
+            return(paste(vapply(letter, exp_nodata, character(1)), collapse = " * "))
+        }
+
+        gcalc_exp <- paste0("numpy.where(", exp_nodata(LETTERS[1:nrow(coef_tb)]), ", ",
+                            paste(paste(LETTERS[1:nrow(coef_tb)], "*", model_tb[[member]]), collapse = " + "),
+                            ", -9999)")
+        model_tb$file_path %>% gdal_calc(out_filename = out_fnames[member],
+                                         expression = gcalc_exp, dstnodata = img_md$srcnodata_l8)
+    }, character(1)) %>%
+        return()
+}
+
+
+#' @title Compute vegetation indexes from bricks.
+#' @author Alber Sanchez, \email{alber.ipia@@inpe.br}
+#' @description Compute vegetation indexes from bricks.
+#'
+#' @param brick_path    A length-one character. Path to bricks.
+#' @param brick_pattern A length-one character. Regular expression used to filter the files in brick_path.
+#' @param vi_index      A character. The indexes to be computed.
+#' @param no_data       A length-one numeric. The value for no data.
+#' @param gdal_options  A character.
+#' @return              A character. Path to the created vegetation index bricks.
+#' @export
+compute_vi <- function(brick_path, brick_pattern = "^brick_.*[.]tif$",
+                       vi_index = c("ndvi", "savi"), no_data = -9999,
+                       gdal_options = c("TILED=YES",
+                                        "COPY_SRC_OVERVIEWS=YES",
+                                        "COMPRESS=LZW")){
+
+    # Get the path to a file from a brick tibble
+    # @param brick_tb A tibble of brick metadata. It must contain the fields c("files", "band", "file_path")
+    # @param x        A length-one numeric. A row index in brick_tb
+    # @param aband    A length-one character. The name of a band
+    # @return         A character. A path to a file
+    get_path <- function(brick_tb, x, aband){
+        brick_tb %>% dplyr::slice(x) %>% dplyr::pull(files) %>%
+            dplyr::bind_rows() %>% dplyr::filter(band == aband) %>%
+            dplyr::pull(file_path) %>% dplyr::first() %>% return()
+    }
+
+
+    # Compute a vegetation index from the input bricks
+    # NOTE: this is a workaround regarding gdal_calc inability to process bricks
+    # @param brick_A     A length-one character. Path to a brick file
+    # @param brick_B     A length-one character. Path to a brick file
+    # @param vi_exp      A length-one character. A gdal_calc vaid expression
+    # @param vi_filename A length-one character. Path to the resulting file
+    # @return vi_filename
+    compute_brick_vi <- function(brick_A, brick_B, vi_exp, vi_filename, gdal_options){
+        n_bands <- get_number_of_bands(brick_A)
+        if (n_bands != get_number_of_bands(brick_B)) {
+            warning(sprintf("Missmatching number of bands between %s and %s", brick_A, brick_B))
+            return(NA)
+        }
+        # export brick's bands
+        vi_tmp <- lapply(1:n_bands, function(b_number){
+            fname <- vi_filename %>%
+                stringr::str_replace(".tif", paste0("_tmp_", b_number, ".tif"))
+            gdal_calc(input_files = c(brick_A, brick_B),
+                      out_filename = fname,
+                      expression = vi_exp,
+                      band_number = rep(b_number, 2),
+                      data_type = "Int16",
+                      dry_run = FALSE)
+        })
+        # stack the bands
+        vi_tmp %>% unlist() %>%
+            gdal_merge(out_filename = vi_filename, separate = TRUE,
+                       of = "GTiff", creation_option = gdal_options,
+                       init = no_data, a_nodata = no_data)
+        # cleaning
+        file.remove(unlist(vi_tmp))
+        return(vi_filename)
+    }
+
+    brick_tb <- brick_path %>% list.files(pattern = brick_pattern, full.names = TRUE) %>%
+        ensurer::ensure_that(length(.) > 0, err_desc = "No brick files were found!") %>%
+        dplyr::as_tibble() %>% dplyr::rename(file_path = value) %>%
+        dplyr::mutate(scene = stringr::str_extract(basename(file_path), "[0-9]{6}"),
+                      first_date = as.Date(stringr::str_extract(basename(file_path), "[0-9]{4}-[0-9]{2}-[0-9]{2}")),
+                      band = get_landsat_band(file_path, band_name = "short_name")) %>%
+        tidyr::nest(file_path, band, .key = "files")
+
+    ndvi_exp <- paste0("numpy.where(A != ", no_data, ", numpy.divide(A.astype(float64) - B.astype(float64) , A.astype(float64) + B.astype(float64) + 0.0001, out = numpy.full_like(A.astype(float64), ", no_data, "), where = A != -B) * 10000, A)")
+    savi_exp <- paste0("numpy.where((A != ", no_data, ") * (B != ", no_data, "), ((A.astype(float64) - B.astype(float64)) / (A.astype(float64) + B.astype(float64) + 5000.0001)) * 1.5 * 10000, ", no_data, ")")
+
+    vi_paths <- lapply(1:nrow(brick_tb), function(b_index){
+        b4 <- brick_tb %>% get_path(b_index, "red")
+        b5 <- brick_tb %>% get_path(b_index, "nir")
+        ndvi_filename <- NA
+        savi_filename <- NA
+        if (all(is.na(b5), is.na(b4))) {
+            warning("No vegetation indexes was computed because of missing bricks.")
+        }else{
+            if ("ndvi" %in% vi_index) {
+                vi_filename <- b4 %>% stringr::str_replace("_red_", "_ndvi_")
+                ndvi_filename <- compute_brick_vi(b5, b4, ndvi_exp, vi_filename, gdal_options = gdal_options)
+            }else if ("savi" %in% vi_index) {
+                vi_filename <- b4 %>% stringr::str_replace("_red_", "_savi_")
+                savi_filename <- compute_brick_vi(b5, b4, savi_exp, vi_filename, gdal_options = gdal_options)
+            }
+        }
+        return(c(ndvi = ndvi_filename, savi = savi_filename))
+    })
+    return(vi_paths)
+}
+
+
+#' @title Get a time series from a brick.
+#' @author Alber Sanchez, \email{alber.ipia@@inpe.br}
+#' @description Find the tiled images closest to a given date.
+#'
+#' @param brick_path A length-one character. Path to a brick file
+#' @param pix_x      A length-one numeric. A pixel's column index
+#' @param pix_y      A length-one numeric. A pixel's row index
+#' @return           A numeric
+#' @export
+get_brick_ts <- function(brick_path, pix_x, pix_y){
+    cmd <- paste("gdallocationinfo", brick_path, pix_x, pix_y)
+    system(cmd, intern = TRUE) %>%
+        .[gtools::even(seq_along(.))] %>% .[2:length(.)] %>% strsplit(" ") %>%
+        lapply(dplyr::last) %>% unlist() %>% as.numeric() %>%
+        return()
+}
+
+
+#' @title Pile image files into a sigle file.
+#' @author Alber Sanchez, \email{alber.ipia@@inpe.br}
+#' @description Pile images into a single file.
+#'
+#' @param file_paths   A character. Path to image files.
+#' @param out_fn       A length-one character. Path to the output file.
+#' @param gdal_format  A length-one character. Gdal format of the output file.
+#' @param no_data      A length-one numeric. No data value.
+#' @param gdal_options A character. Options passed to gdal for raster creation.
+#' @export
+pile_files <- function(file_paths, out_fn,
+                       gdal_format = "GTiff",
+                       no_data = -9999,
+                       gdal_options = c("TILED=YES",
+                                        "COPY_SRC_OVERVIEWS=YES",
+                                        "COMPRESS=LZW")){
+    gdal_merge(input_files = file_paths,
+               out_filename = out_fn,
+               separate = TRUE,
+               of = gdal_format,
+               creation_option = gdal_options,
+               init = no_data,
+               a_nodata = no_data) %>%
+        invisible()
+}
+
+
+#' @title Pile images into files by band.
+#' @author Alber Sanchez, \email{alber.ipia@@inpe.br}
+#' @description Pile images into files by band.
+#'
+#' @param brick_imgs   A tibble of images.
+#' @param file_col     Name of the column in brick_imgs with the paths to the images to pile up.
+#' @param brick_bands  A character. Names of the bands.
+#' @param brick_prefix A lengh-one character. Prefix to append to produced file names.
+#' @param brick_scene  A length-one character. The scene or tile of the brick.
+#' @param out_dir      A character. Path to a directory for storing results.
+#' @param no_data      A length-one numeric. The value for no data.
+#' @param gdal_options A character. Options passed to gdal for raster creation.
+#' @return             A tibble of the matching PRODES dates and NA for the
+#' @export
+pile_up <- function(brick_imgs, file_col, brick_bands, brick_prefix, brick_scene, out_dir, no_data, gdal_options){
+
+    # helper function to pile up the files of a single band
+    helper_pile_band <- function(i_tb){
+        band_short_name <- SPECS_L8_SR %>%
+            dplyr::filter(band_designation == unique(i_tb$band)) %>%
+            dplyr::pull(short_name) %>% dplyr::first() %>%
+            stringr::str_replace(" ", "_") %>% tolower()
+        out_fn <- file.path(out_dir,
+                            paste0(paste(brick_prefix, brick_scene,
+                                         first_date, band_short_name,
+                                         "STACK_BRICK", sep = "_"), ".tif"))
+        i_tb %>% dplyr::pull(file_path) %>%
+            unlist() %>%
+            pile_files(out_fn = out_fn, gdal_format = "GTiff",
+                       no_data = no_data, gdal_options = gdal_options) %>%
+            tibble::enframe(name = NULL) %>%
+            return()
+    }
+    first_date <- brick_imgs %>% dplyr::pull(img_date) %>% unlist() %>% min()
+    img_tb <- brick_imgs %>% tidyr::unnest(.data[[file_col]]) %>%
+        dplyr::mutate(band = get_landsat_band(.data[["file_path"]])) %>%
+        dplyr::filter(band %in% brick_bands)
+    img_tb %>% dplyr::group_by(band) %>%
+        dplyr::do(helper_pile_band(.data)) %>% dplyr::ungroup() %>%
+        return()
+}
+
+

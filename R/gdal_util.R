@@ -1,3 +1,96 @@
+#' @title Build a Virtual Dataset file.
+#' @author Alber Sanchez, \email{alber.ipia@@inpe.br}
+#' @description R wrapper for gdalbuildvrt
+#'
+#' @param input_files           A character. Paths to the image files.
+#' @param out_filename          A length-one character. The path to the
+#' destination file.
+#' @param tileindex             A length-one character. A tile index field name.
+#' @param resolution            A length-one character.
+#' @param target_extent         A length-four numeric.
+#' @param target_resolution     A length-two numeric.
+#' @param tap                   A length-one logical.
+#' @param separate              A length-one logical.
+#' @param band                  An integer.
+#' @param subdataset            A length-one integer.
+#' @param q                     A length-one logical. Disable the progress bar.
+#' @param optimise              A length-one character.
+#' @param addalpha              A length-one logical.
+#' @param hidenodata            A length-one logical.
+#' @param srcnodata             A numeric.
+#' @param vrtnodata             A numeric.
+#' @param a_srs                 A length-one character.
+#' @param resampling            A length-one character.
+#' @param oo                    A length-one character.
+#' @param input_file_list       A length-one character. Path to a text file of file paths.
+#' @param overwrite             A length-one logical.
+#' @param dry_run               A length-one logical. Do not run, just print the sytem call.
+#' @return out_filename         A length-one character.
+#' @export
+gdal_build_vrt <- function(input_files,
+                         out_filename = tempfile(pattern = "gdalbuildvrtout_", fileext = ".vrt"),
+                         tileindex = NULL, resolution = NULL,
+                         target_extent = NULL, target_resolution = NULL,
+                         tap = FALSE, separate = FALSE, band = NULL,
+                         subdataset = NULL, q = TRUE, optimise = NULL,
+                         addalpha = FALSE, hidenodata = FALSE, srcnodata = NULL,
+                         vrtnodata = NULL, a_srs = NULL, resampling = NULL,
+                         oo = NULL, input_file_list = NULL, overwrite = FALSE,
+                         dry_run = FALSE){
+
+    if (any(is.na(input_files))) {
+        warning("NAs found in gdalbuildvrt. Removing them...")
+        input_files <- input_files[!is.na(input_files)]
+    }
+    stopifnot(.is_input_file_valid(input_files))
+    params <- character()
+
+    if (!is.null(tileindex))
+       params <- append(params, paste0("-tileindex ", tileindex))
+    if (!is.null(resolution))
+        params <- append(params, paste0("-resolution ", resolution))
+    if (!is.null(target_extent))
+        params <- append(params, paste("-te", paste(target_extent, collapse = " ")))
+    if (!is.null(band))
+        params <- append(params, paste("-b", paste(band, sep = " ")))
+    if (!is.null(subdataset))
+        params <- append(params, paste0("-sd ", subdataset))
+    if (!is.null(optimise))
+        params <- append(params, paste0("-optim ", optimise))
+    if (!is.null(srcnodata))
+        params <- append(params, paste0("-srcnodata '", paste(srcnodata, collapse = " "), "'"))
+    if (!is.null(vrtnodata))
+        params <- append(params, paste0("-vrtnodata '", paste(vrtnodata, collapse = " "), "'"))
+    if (!is.null(a_srs))
+        params <- append(params, paste0("-a_srs ", a_srs))
+    if (!is.null(resampling))
+        params <- append(params, paste0("-r ", resampling))
+    if (!is.null(oo))
+        params <- append(params, paste("-oo", oo))
+    if (!is.null(input_file_list))
+        params <- append(params, paste("-input_file_list", input_file_list))
+    if (tap)
+        params <- append(params, "-tap")
+    if (separate)
+        params <- append(params, "-separate")
+    if (q)
+        params <- append(params, "-q")
+    if (addalpha)
+        params <- append(params, "-addalpha")
+    if (hidenodata)
+        params <- append(params, "-hidenodata")
+    if (overwrite)
+        params <- append(params, "-overwrite")
+    params <- append(params, out_filename)
+    params <- append(params, input_files)
+    error <- call_os(command = "gdalbuildvrt", args = params, dry_run = dry_run)
+    if (error) {
+        warning("Failed call to gdalbuildvrt")
+        return(NA_character_)
+    }
+    return(out_filename)
+}
+
 #' @title Do calculations on images.
 #' @author Alber Sanchez, \email{alber.ipia@@inpe.br}
 #' @description R wrapper for gdal_calc.py
@@ -70,6 +163,28 @@ gdal_calc <- function(input_files,
         return(NA_character_)
     }
     return(out_filename)
+}
+
+
+#' @title Get the full MOD13Q1 name from a file path.
+#' @author Alber Sanchez, \email{alber.ipia@@inpe.br}
+#' @description Get the full MOD13Q1 name from a landsat file
+#'
+#' @param path_modis A character. Path to a file path.
+#' @param band       A length-one character. Name of a Landsat 8 band.
+#' @return A character. The full gdal name of a MOD13Q1 band.
+gdal_match_name <- function(path_modis, band) {
+    if (length(path_modis) == 1) {
+        pre_suf <- SPECS_MOD13Q1 %>%
+            dplyr::inner_join(SPECS_L8_SR,
+                              by = c(common_name = "mod13q1_name")) %>%
+            dplyr::filter(band_designation == band) %>%
+            dplyr::select(gdal_prefix, gdal_suffix) %>%
+            unlist()
+        paste0(pre_suf[1], path_modis, pre_suf[2]) %>% return()
+    } else if (length(path_modis) > 1) {
+        sapply(path_modis, gdal_match_name, band = band) %>% return()
+    }
 }
 
 
@@ -469,98 +584,6 @@ gdal_warp <- function(input_files,
 }
 
 
-#' @title Build a Virtual Dataset file.
-#' @author Alber Sanchez, \email{alber.ipia@@inpe.br}
-#' @description R wrapper for gdalbuildvrt
-#'
-#' @param input_files           A character. Paths to the image files.
-#' @param out_filename          A length-one character. The path to the
-#' destination file.
-#' @param tileindex             A length-one character. A tile index field name.
-#' @param resolution            A length-one character.
-#' @param target_extent         A length-four numeric.
-#' @param target_resolution     A length-two numeric.
-#' @param tap                   A length-one logical.
-#' @param separate              A length-one logical.
-#' @param band                  An integer.
-#' @param subdataset            A length-one integer.
-#' @param q                     A length-one logical. Disable the progress bar.
-#' @param optimise              A length-one character.
-#' @param addalpha              A length-one logical.
-#' @param hidenodata            A length-one logical.
-#' @param srcnodata             A numeric.
-#' @param vrtnodata             A numeric.
-#' @param a_srs                 A length-one character.
-#' @param resampling            A length-one character.
-#' @param oo                    A length-one character.
-#' @param input_file_list       A length-one character. Path to a text file of file paths.
-#' @param overwrite             A length-one logical.
-#' @param dry_run               A length-one logical. Do not run, just print the sytem call.
-#' @return out_filename A length-one character.
-#' @export
-gdalbuildvrt <- function(input_files,
-                         out_filename = tempfile(pattern = "gdalbuildvrtout_", fileext = ".vrt"),
-                         tileindex = NULL, resolution = NULL,
-                         target_extent = NULL, target_resolution = NULL,
-                         tap = FALSE, separate = FALSE, band = NULL,
-                         subdataset = NULL, q = TRUE, optimise = NULL,
-                         addalpha = FALSE, hidenodata = FALSE, srcnodata = NULL,
-                         vrtnodata = NULL, a_srs = NULL, resampling = NULL,
-                         oo = NULL, input_file_list = NULL, overwrite = FALSE,
-                         dry_run = FALSE){
-
-    if (any(is.na(input_files))) {
-        warning("NAs found in gdalbuildvrt. Removing them...")
-        input_files <- input_files[!is.na(input_files)]
-    }
-    stopifnot(.is_input_file_valid(input_files))
-    params <- character()
-
-    if (!is.null(tileindex))
-       params <- append(params, paste0("-tileindex ", tileindex))
-    if (!is.null(resolution))
-        params <- append(params, paste0("-resolution ", resolution))
-    if (!is.null(target_extent))
-        params <- append(params, paste("-te", paste(target_extent, collapse = " ")))
-    if (!is.null(band))
-        params <- append(params, paste("-b", paste(band, sep = " ")))
-    if (!is.null(subdataset))
-        params <- append(params, paste0("-sd ", subdataset))
-    if (!is.null(optimise))
-        params <- append(params, paste0("-optim ", optimise))
-    if (!is.null(srcnodata))
-        params <- append(params, paste0("-srcnodata '", paste(srcnodata, collapse = " "), "'"))
-    if (!is.null(vrtnodata))
-        params <- append(params, paste0("-vrtnodata '", paste(vrtnodata, collapse = " "), "'"))
-    if (!is.null(a_srs))
-        params <- append(params, paste0("-a_srs ", a_srs))
-    if (!is.null(resampling))
-        params <- append(params, paste0("-r ", resampling))
-    if (!is.null(oo))
-        params <- append(params, paste("-oo", oo))
-    if (!is.null(input_file_list))
-        params <- append(params, paste("-input_file_list", input_file_list))
-    if (tap)
-        params <- append(params, "-tap")
-    if (separate)
-        params <- append(params, "-separate")
-    if (q)
-        params <- append(params, "-q")
-    if (addalpha)
-        params <- append(params, "-addalpha")
-    if (hidenodata)
-        params <- append(params, "-hidenodata")
-    if (overwrite)
-        params <- append(params, "-overwrite")
-    params <- append(params, out_filename)
-    params <- append(params, input_files)
-    error <- call_os(command = "gdalbuildvrt", args = params, dry_run = dry_run)
-    if (error) {
-        warning("Failed call to gdalbuildvrt")
-        return(NA_character_)
-    }
-    return(out_filename)
-}
 
 
 #' @title Get the number of bands in a file.
