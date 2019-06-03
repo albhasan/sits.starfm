@@ -2,7 +2,8 @@
 
 export("%>%")
 export(.data)
-export(build_brick)
+export(build_brick_maskcloud)
+export(build_brick_starfm)
 export(build_brick_tibble)
 export(build_brick_tibble2)
 export(build_landsat_tibble)
