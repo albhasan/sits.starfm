@@ -91,6 +91,8 @@ SPECS_MOD13Q1 <- tibble::tibble(
 
 c_names <- c("wavelength", "substrate", "vegetation", "dark")
 
+# values obtained from "Global cross-calibration of Landsat spectral mixture models" - https://www.sciencedirect.com/science/article/pii/S0034425717300500
+# file name Landsat 7 ETM+ Global Endmembers
 END_MEMBERS_LANDSAT_7 <- c(0.483000, 0.218413, 0.100880, 0.083704,
                            0.560000, 0.344440, 0.098638, 0.047546,
                            0.662000, 0.535987, 0.067241, 0.023937,
@@ -102,6 +104,8 @@ END_MEMBERS_LANDSAT_7 <- c(0.483000, 0.218413, 0.100880, 0.083704,
         "sr_band3", "sr_band4", "sr_band5", "sr_band7")) %>%
     dplyr::select(band, wavelength, substrate, vegetation, dark)
 
+# values obtained from "Global cross-calibration of Landsat spectral mixture models" - https://www.sciencedirect.com/science/article/pii/S0034425717300500
+# Landsat 8 OLI Global Endmembers
 END_MEMBERS_LANDSAT_8 <- c(0.482600, 0.217556, 0.107935, 0.085274,
                            0.561300, 0.336629, 0.101411, 0.048318,
                            0.654600, 0.542132, 0.066796, 0.026065,

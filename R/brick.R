@@ -1,26 +1,25 @@
-
 #' @title Build a SITS brick using a fusion model (StarFM) to fill in the cloud gaps
 #' @author Alber Sanchez, \email{alber.ipia@@inpe.br}
 #' @description Build a SITS brick using a fusion odel (StarFM) to finnin the gaps.
 #'
-#' @param landsat_path A length-one character. Path to a direcotry of Landsat images.
-#' @param modis_path   A length-one character. Path to a direcotry of MODIS images.
-#' @param scene_shp    A length-one character. Path to a polygon shapefile of the boundaries of Landsat's scenes.
-#' @param tile_shp     A length-one character. Path to a polygon shapefile of the boundaries of MODIS's scenes.
-#' @param brick_scene  A length-one character. A Landsat's scene id. i.e. "225063"
-#' @param brick_year   A length-one numeric. A PRODES year.
-#' @param brick_bands  A character. The Landsat's bands to use for building the brick.
-#' @param brick_path   A length-one character. A path to store the resulting bricks.
+#' @param landsat_path    A length-one character. Path to a directory of Landsat images.
+#' @param modis_path      A length-one character. Path to a directory of MODIS images.
+#' @param scene_shp       A length-one character. Path to a polygon shapefile of the boundaries of Landsat's scenes.
+#' @param tile_shp        A length-one character. Path to a polygon shapefile of the boundaries of MODIS's scenes.
+#' @param brick_scene     A length-one character. A Landsat's scene id. i.e. "225063"
+#' @param brick_year      A length-one numeric. A PRODES year.
+#' @param brick_bands     A character. The Landsat's bands to use for building the brick.
+#' @param brick_path      A length-one character. A path for storing the resulting bricks.
 #' @param cloud_threshold A length-one numeric. The approximated proportion of clouds in the brick.
-#' @param img_per_year A length-one numeric. The number of images in a brick-year. The default is 23.
-#' @param n_best_img   A length-one numeric. Use only only this number of images. Best means less cloudy.
-#' @param image_step   A length-one numeric. The number of days between images.
-#' @param temp_dir     A length-one character. A path to a folder to store temporal files.
-#' @param no_data      A length-one numeric. The value for no data.
-#' @param gdal_options A character. Options passed to gdal for raster creation.
-#' @return             A tibble
+#' @param img_per_year    A length-one numeric. The number of images in a brick-year. The default is 23.
+#' @param n_best_img      A length-one numeric. Use only only this number of images. Best means less cloudy.
+#' @param image_step      A length-one numeric. The number of days between images.
+#' @param temp_dir        A length-one character. A path to a folder to store temporal files.
+#' @param no_data         A length-one numeric. The value for no data.
+#' @param gdal_options    A character. Options passed to gdal for raster creation.
+#' @return                A tibble.
 #' @export
-build_brick <- function(landsat_path, modis_path, scene_shp, tile_shp,
+build_brick_starfm <- function(landsat_path, modis_path, scene_shp, tile_shp,
                         brick_scene, brick_year, brick_bands,
                         brick_path, cloud_threshold, n_best_img = 23,
                         img_per_year = 23, image_step = 16, temp_dir = NULL,
@@ -127,7 +126,6 @@ build_brick <- function(landsat_path, modis_path, scene_shp, tile_shp,
         }
         img1 <- img1 %>% dplyr::bind_rows()
 
-        # NOTE: Is the mean representative of the MODIS coverage of a Landsat image?
         mod_cloud_cover <- img0 %>% dplyr::pull(tile) %>% dplyr::bind_rows() %>%
             dplyr::pull(cloud_cov) %>% mean()
 
@@ -224,7 +222,6 @@ build_brick <- function(landsat_path, modis_path, scene_shp, tile_shp,
                        a_nodata = no_data)
         return(paths)
     }, filled_tb = filled_tb, brick_path = brick_path, first_img_date = first_img_date)
-    #save(brick_path, file = file.path(tmp_dir, "brick_path.Rdata"))
 
     brick_imgs_fp <- file.path(starfm_dir,
                                paste0(paste("brick_imgs", brick_scene,
