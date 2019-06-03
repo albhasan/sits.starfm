@@ -63,16 +63,17 @@ temp_dir = "/home/alber/shared/tmp"
 # Description: Unable to build a brick for 226064 - 2014
 
 #debugonce(run_starFM)
-brick_233067_2015 <- build_brick(landsat_path = landsat_path,
-                                 modis_path = modis_path, scene_shp = scene_shp,
-                                 tile_shp = tile_shp,
-                                 brick_scene = "225063",
-                                 brick_year = 2017,
-                                 brick_bands = c("sr_band4", "sr_band5", "sr_band7"),
-                                 brick_path = brick_path,
-                                 cloud_threshold = cloud_threshold,
-                                 img_per_year = img_per_year,
-                                 temp_dir = temp_dir)
+brick_233067_2015 <- build_brick_starfm(landsat_path = landsat_path,
+                                        modis_path = modis_path, scene_shp = scene_shp,
+                                        tile_shp = tile_shp,
+                                        brick_scene = "225063",
+                                        brick_year = 2017,
+                                        brick_bands = c("sr_band4", "sr_band5", "sr_band7"),
+                                        brick_path = brick_path,
+                                        cloud_threshold = cloud_threshold,
+                                        img_per_year = img_per_year,
+                                        temp_dir = temp_dir)
 
 warnings()
 options(error = NULL)
+

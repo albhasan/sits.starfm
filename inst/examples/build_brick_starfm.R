@@ -20,19 +20,19 @@ options(error = dump_and_quit)
 #options( warn = 2 ) # TODO: remove for production
 
 #debugonce(run_starFM)
-brick_233067_2015 <- build_brick(landsat_path    = "/home/alber/landsat8",
-                                 modis_path      = "/home/alber/MOD13Q1", 
-                                 scene_shp       = "/home/alber/Documents/data/experiments/l8mod-fusion/data/shp/wrs2_descending.shp",
-                                 tile_shp        = "/home/alber/Documents/data/experiments/l8mod-fusion/data/shp/modis-tiles.shp",
-                                 brick_scene     = "225063",
-                                 brick_year      = 2017,
-                                 brick_bands     = c("sr_band4", "sr_band5", "sr_band7"),
-                                 brick_path      = "/home/alber/shared/brick",
-                                 cloud_threshold = 0.99,
-                                 n_best_img      = 4,
-                                 img_per_year    = 23,
-                                 image_step      = ceiling(365/img_per_year),
-                                 temp_dir        = "/home/alber/shared/tmp")
+brick_233067_2015 <- build_brick_starfm(landsat_path    = "/home/alber/landsat8",
+                                        modis_path      = "/home/alber/MOD13Q1", 
+                                        scene_shp       = "/home/alber/Documents/data/experiments/l8mod-fusion/data/shp/wrs2_descending.shp",
+                                        tile_shp        = "/home/alber/Documents/data/experiments/l8mod-fusion/data/shp/modis-tiles.shp",
+                                        brick_scene     = "225063",
+                                        brick_year      = 2017,
+                                        brick_bands     = c("sr_band4", "sr_band5", "sr_band7"),
+                                        brick_path      = "/home/alber/shared/brick",
+                                        cloud_threshold = 0.99,
+                                        n_best_img      = 4,
+                                        img_per_year    = 23,
+                                        image_step      = ceiling(365/img_per_year),
+                                        temp_dir        = "/home/alber/shared/tmp")
 
 warnings()
 options(error = NULL)
