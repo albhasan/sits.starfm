@@ -488,6 +488,8 @@ build_brick_tibble <- function(landsat_path, modis_path, scene_shp, tile_shp,
                                scenes = NULL, from = NULL, to = NULL,
                                max_ts_hole = 1, min_miss_ratio = 0.95){
 
+    Deprecated("build_brick_tibble2")
+
     if (!all(dir.exists(landsat_path), dir.exists(modis_path))) {
         stop("Directory not found!")
     }
@@ -549,21 +551,21 @@ build_brick_tibble <- function(landsat_path, modis_path, scene_shp, tile_shp,
 }
 
 
-#' @title Build a tibble with the data required to create bricks.
+#' @title Build a tibble of the data required to create bricks.
 #' @author Alber Sanchez, \email{alber.ipia@@inpe.br}
 #' @description Build a tibble with the data required to create bricks.
 #'
-#' @param landsat_path A length-one character. Path to a directory of images.
-#' @param modis_path   A length-one character. Path to a directory of images.
-#' @param scene_shp    A length-one character. Path to a polygon shapefile of
+#' @param landsat_path  A length-one character. Path to a directory of images.
+#' @param modis_path    A length-one character. Path to a directory of images.
+#' @param scene_shp     A length-one character. Path to a polygon shapefile of
 #' Landsat scene borders.
-#' @param tile_shp     A length-one character. Path to a polygon shapefile of
+#' @param tile_shp      A length-one character. Path to a polygon shapefile of
 #' MODIS tile borders.
-#' @param scenes       A character. Constrain to these scenes (e.g. 233067)
-#' @param from         A character. Constrain to this starting date.
-#' @param to           A character. Constrain to this ending date.
+#' @param scenes        A character. Constrain to these scenes (e.g. 233067)
+#' @param from          A character. Constrain to this starting date.
+#' @param to            A character. Constrain to this ending date.
 #' @param add_neighbors A logical. Should neighbor images be considered?
-#' @return             A tibble.
+#' @return              A tibble.
 #' @export
 build_brick_tibble2 <- function(landsat_path, modis_path, scene_shp, tile_shp,
                                 scenes, from, to, add_neighbors){
