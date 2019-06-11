@@ -18,7 +18,7 @@ compute_vi(brick_path, brick_pattern = "^brick_.*[.]tif$",
 
 \item{no_data}{A length-one numeric. The value for no data.}
 
-\item{gdal_options}{A character.}
+\item{gdal_options}{A character. Options passed to gdal for raster creation.}
 }
 \value{
 A character. Path to the created vegetation index bricks.

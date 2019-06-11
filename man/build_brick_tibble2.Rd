@@ -2,7 +2,7 @@
 % Please edit documentation in R/brick.R
 \name{build_brick_tibble2}
 \alias{build_brick_tibble2}
-\title{Build a tibble with the data required to create bricks.}
+\title{Build a tibble of the data required to create bricks.}
 \usage{
 build_brick_tibble2(landsat_path, modis_path, scene_shp, tile_shp, scenes,
   from, to, add_neighbors)

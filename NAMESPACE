@@ -3,6 +3,7 @@
 export("%>%")
 export(.data)
 export(build_brick_maskcloud)
+export(build_brick_raw)
 export(build_brick_simple)
 export(build_brick_starfm)
 export(build_brick_tibble)
