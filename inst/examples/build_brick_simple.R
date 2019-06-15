@@ -1,5 +1,7 @@
 #!/usr/bin/env Rscript
+
 # Build a brick by just piling Landsat 8 images
+
 setwd("/home/alber/Documents/data/experiments/l8mod-fusion/Rpackage/sits.starfm")
 suppressMessages(suppressPackageStartupMessages(library(dplyr)))
 suppressMessages(suppressPackageStartupMessages(library(optparse)))
@@ -69,8 +71,6 @@ b_simple <-build_brick_simple(landsat_path = landsat_path,
                               gdal_format = gdal_format,
                               no_data = no_data,
                               tmp_dir = tmp_dir)
-
-print("CLOUD BRICKS: copy the cloud bricks from maskcloud") 
 
 print("Finished!")
 
