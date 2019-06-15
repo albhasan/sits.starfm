@@ -7,11 +7,10 @@
 library(dplyr)
 library(purrr)
 library(lubridate)
-library(devtools)
 library(ensurer)
+library(sits.starfm)
 
 setwd("/home/alber/Documents/data/experiments/l8mod-fusion/Rpackage/sits.starfm")
-devtools::load_all()
 
 SPECS_L8_SR <- tibble::tibble(
     band_designation = c("sr_band1", "sr_band2", "sr_band3", "sr_band4",
@@ -141,7 +140,6 @@ BRICK_IMAGES <- purrr::pmap(list(brick_scene, brick_from, brick_to), function(sc
         return()
 }) %>% dplyr::bind_rows() %>% ensurer::ensure_that(nrow(.) > 0, err_desc = "Images not found!")
 # add raster extent
-library(sits.starfm)
 tmp_img_path <- BRICK_IMAGES %>%
     dplyr::select(sat_image, files) %>%
     tidyr::unnest() %>%
@@ -168,6 +166,24 @@ BRICK_IMAGES %>%
     dplyr::mutate(test_res = all.equal(scene, scene_sat_image, scene_file)) %>% 
     dplyr::pull(test_res) %>% 
     ensurer::ensure_that(all(.), err_desc = "Scene missmatch")
+decimal_places = 4
+
+# TODO : compare the extent coords to ensure a one-to-one match between scenes and extents
+BRICK_IMAGES %>%
+    dplyr::pull(img_extent) %>%
+    as.data.frame(stringsAsFactors = FALSE) %>%
+    t() %>%
+    as.data.frame(stringsAsFactors = FALSE, row.names = "") %>%
+    dplyr::bind_cols(BRICK_IMAGES) %>%
+    dplyr::select(sat_image, scene, xmin, xmax, ymin, ymax) %>%
+    dplyr::group_by(scene) %>%
+    dplyr::select(scene, xmin, xmax, ymin, ymax) %>%
+    dplyr::mutate(xmin = round(xmin, decimal_places),
+                  xmax = round(xmax, decimal_places),
+                  ymin = round(ymin, decimal_places),
+                  ymax = round(ymax, decimal_places)) %>%
+    dplyr::distinct() %>%
+    dplyr::ungroup() # NOTE: each image has its own extent, so, this code isn't helping!!!
 
 usethis::use_data(BRICK_IMAGES, internal = FALSE, overwrite = TRUE)
 

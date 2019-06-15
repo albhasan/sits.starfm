@@ -2,7 +2,7 @@
 % Please edit documentation in R/brick.R
 \name{compute_mixture_model}
 \alias{compute_mixture_model}
-\title{Compute a misture model.}
+\title{Compute a mixture model.}
 \usage{
 compute_mixture_model(file_paths, out_dir, landsat_sat = "8",
   no_data = -9999)
