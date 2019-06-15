@@ -86,68 +86,26 @@ build_brick_maskcloud <- function(landsat_path, modis_path, scene_shp, tile_shp,
         ensurer::ensure_that(all(.$n_img == brick_n_img), 
                                  err_desc = "Some VI bricks miss the target number of bands")
 
-    # build spectral mixture bricks
-    brick_imgs <- brick_imgs %>% dplyr::mutate(mixture = purrr::map(.$masked, 
-        function(x){
-            x %>% unlist() %>% compute_mixture_model(out_dir = tmp_dir) %>%
-                tibble::enframe(name = "end_member", value = "file_path") %>%
-                tidyr::spread(key = "end_member", value = "file_path") %>%
-                return()
-        }))
-    mix_brick <- brick_imgs %>% tidyr::unnest(mixture) %>% 
-        dplyr::select(dark, substrate, vegetation) %>%
-        lapply(function(x, out_dir, prefix){
-                   img_md <- x[1] %>% parse_img_name()
-                   img_date <- format(as.POSIXct(img_md["acquisition"], 
-                                      format = "%Y%m%d"), "%Y-%m-%d")
-                   img_band <- unlist(strsplit(img_md[length(img_md)], 
-                                      split = "[.]"))[1] 
-                   out_fn <- file.path(out_dir, paste(prefix, img_md["path_row"],
-                                       img_date, img_band, "STACK_BRICK.tif", sep = '_'))
-                   x %>% gdal_merge(out_filename = out_fn, separate = TRUE, 
-                                    of = gdal_format, creation_option = gdal_options,
-                                    init = no_data, a_nodata = no_data) %>%
-                       return()
-               }, out_dir = brick_path, 
-               prefix = brick_prefix) %>%
-        unlist() %>%
-        tibble::enframe(name = NULL) %>%
-        dplyr::mutate(n_img = get_number_of_bands(value)) %>%
-        ensurer::ensure_that(all(.$n_img == brick_n_img))
+    # Build bricks using the spectral mixture model.
+    mix_brick <- brick_imgs %>% build_spectral_mixture_brick(field_name = "masked",
+                                                             brick_prefix = brick_prefix,
+                                                             brick_path = brick_path, 
+                                                             brick_n_img = brick_n_img,
+                                                             no_data = no_data,
+                                                             gdal_format = gdal_format,
+                                                             gdal_options = gdal_options,
+                                                             tmp_dir = tmp_dir)
 
     # build the cloud mask brick
-    brick_imgs <- brick_imgs %>%
-        dplyr::mutate(pixel_qa = purrr::map_chr(.$files, function(x){
-            x %>% dplyr::mutate(fname = basename(file_path)) %>%
-                dplyr::filter(stringr::str_detect(fname, "_pixel_qa.tif$")) %>%
-                ensurer::ensure_that(nrow(.) == 1, err_desc = "Error while finding the QA band of image") %>%
-                dplyr::pull(file_path) %>%
-                return()
-        })) %>%
-        dplyr::mutate(cloud_mask = purrr::map_chr(.$pixel_qa, function(x){
-            x %>%
-                gdal_calc(
-                    out_filename <- tempfile(pattern = paste0(tools::file_path_sans_ext(basename(x)), '_'),
-                                             tmpdir = tmp_dir, fileext = ".tif"),
-                    expression = "((numpy.bitwise_and(A, 40) != 0) * 1).astype(int16)",
-                    dstnodata = no_data,
-                    out_format = gdal_format,
-                    creation_option = gdal_options)
-        }))
-    img_date <- brick_imgs %>% dplyr::pull(img_date) %>% sort() %>% dplyr::first() %>%
-        as.POSIXct(format = "%Y%m%d") %>% format("%Y-%m-%d")
-    cloud_brick <- brick_imgs %>% dplyr::pull(cloud_mask) %>% pile_files(
-        out_fn <- file.path(brick_path, paste(brick_prefix, brick_scene, img_date, "cloud", "STACK_BRICK.tif", sep = '_')),
-        gdal_format = gdal_format,
-        no_data = no_data,
-        gdal_options = gdal_options)
-    return(list(brick_bands = brick_files, brick_index = vi_brick, brick_mixture = mix_brick))
+    cloud_brick <- brick_imgs %>% build_cloud_brick(field_name = "files")
+ 
+    return(list(brick_bands = brick_files, brick_index = vi_brick, brick_mixture = mix_brick, brick_cloud = cloud_brick))
 }
 
 
-#' @title Build a SITS brick masking the clouds in the images.
+#' @title Build a SITS brick of images.
 #' @author Alber Sanchez, \email{alber.ipia@@inpe.br}
-#' @description Build a SITS brick masking the clouds in the images.
+#' @description Build a SITS brick of images as they are.
 #'
 #' @param landsat_path    A length-one character. Path to a directory of Landsat images.
 #' @param modis_path      A length-one character. Path to a directory of MODIS images.
@@ -164,6 +122,82 @@ build_brick_maskcloud <- function(landsat_path, modis_path, scene_shp, tile_shp,
 #' @param gdal_format     A length-one character. Gdal format of the output file.
 #' @param no_data         A length-one numeric. The value for no data.
 #' @param tmp_dir         A length-one character. A path to a folder to store temporal files.
+#' @return                A list of bricks of bands (tibble), bricks of vegetation indexes (tibble), and bricks of mixture model (tibble)
+#' @export
+build_brick_raw <- function(landsat_path, modis_path, scene_shp, tile_shp,
+                            brick_scene, brick_from, brick_to, brick_bands,
+                            brick_prefix, brick_path, brick_n_img,
+                            gdal_options = "BIGTIFF=YES", 
+                            gdal_format = "GTiff", no_data = -9999,
+                            tmp_dir = tempdir()){
+
+    brick_imgs <- build_brick_tibble2(landsat_path, modis_path, scene_shp, tile_shp,
+                                      scenes = brick_scene, from = brick_from,
+                                      to = brick_to, add_neighbors = FALSE) %>%
+        dplyr::mutate(year = lubridate::year(img_date)) %>%
+        dplyr::slice(1:brick_n_img) %>%
+        dplyr::ungroup() %>%
+        ensurer::ensure_that(nrow(.) == brick_n_img, 
+                             err_desc = sprintf("Not enough images: %s / %s for %s %s",
+                                                nrow(.), brick_n_img,
+                                                brick_scene, brick_from))
+
+    # build bricks
+    brick_files <- brick_imgs %>% pile_up(file_col = "files",
+                                          brick_bands = brick_bands, 
+                                          brick_prefix = brick_prefix, 
+                                          brick_scene = brick_scene, 
+                                          out_dir = brick_path, 
+                                          no_data = no_data,
+                                          gdal_options = gdal_options)
+    # build vegetation indexes bricks 
+    vi_brick <- compute_vi(brick_path,
+        brick_pattern = paste0("^", brick_prefix, "_.*[.]tif$"),
+        vi_index = c("ndvi", "savi"))
+
+    # Build bricks using the spectral mixture model.
+    mix_brick <- brick_imgs %>% build_spectral_mixture_brick(field_name = "files",
+                                                             brick_prefix = brick_prefix,
+                                                             brick_path = brick_path, 
+                                                             brick_n_img = brick_n_img,
+                                                             no_data = no_data,
+                                                             gdal_format = gdal_format,
+                                                             gdal_options = gdal_options,
+                                                             tmp_dir = tmp_dir)
+
+    # build the cloud mask brick
+    cloud_bricks <- brick_imgs %>% build_cloud_brick(field_name = "files",
+                                                     brick_prefix = brick_prefix,
+                                                     brick_path = brick_path,
+                                                     brick_scene = brick_scene,
+                                                     no_data = no_data,
+                                                     gdal_format = gdal_format,
+                                                     gdal_options = gdal_options,
+                                                     tmp_dir = tmp_dir)
+
+    return(list(brick_bands = brick_files, brick_index = vi_brick, brick_mixture = mix_brick, brick_cloud = cloud_bricks))
+}
+
+
+#' @title Build a SITS brick of cloud-masked images.
+#' @author Alber Sanchez, \email{alber.ipia@@inpe.br}
+#' @description Build a SITS brick of images. The clouds in the images are masked.
+#'
+#' @param landsat_path    A length-one character. Path to a directory of Landsat images.
+#' @param modis_path      A length-one character. Path to a directory of MODIS images.
+#' @param scene_shp       A length-one character. Path to a polygon shapefile of the boundaries of Landsat's scenes.
+#' @param tile_shp        A length-one character. Path to a polygon shapefile of the boundaries of MODIS's scenes.
+#' @param brick_scene     A length-one character. A Landsat's scene id. i.e. "225063"
+#' @param brick_from      A length-one character. The first day of the brick. 
+#' @param brick_to        A length-one character. The last day of the brick.
+#' @param brick_bands     A character. The Landsat's bands to use for building the brick.
+#' @param brick_prefix    A legth-one character. Prefix for naming the bricks.
+#' @param brick_path      A length-one character. A path for storing the resulting bricks.
+#' @param brick_n_img     A length-one integer. The number of images to include in a brick.
+#' @param gdal_options    A character. Options passed to gdal for raster creation.
+#' @param gdal_format     A length-one character. Gdal format of the output file.
+#' @param no_data         A length-one numeric. The value for no data.
+#' @param tmp_dir         A length-one character. A path to a folder for storing temporal files.
 #' @return                A list of bricks of bands (tibble), bricks of vegetation indexes (tibble), and bricks of mixture model (tibble)
 #' @export
 build_brick_simple <- function(landsat_path, modis_path, scene_shp, tile_shp,
@@ -198,35 +232,23 @@ build_brick_simple <- function(landsat_path, modis_path, scene_shp, tile_shp,
         brick_pattern = paste0("^", brick_prefix, "_.*[.]tif$"),
         vi_index = c("ndvi", "savi"))
 
-    # build spectral mixture bricks
-    brick_imgs <- brick_imgs %>% dplyr::mutate(mixture = purrr::map(.$files, 
-        function(x){
-            x %>% unlist() %>% compute_mixture_model(out_dir = brick_path) %>%
-                tibble::enframe(name = "end_member", value = "file_path") %>%
-                tidyr::spread(key = "end_member", value = "file_path") %>%
-                return()
-        }))
-    mix_brick <- brick_imgs %>% tidyr::unnest(mixture) %>% 
-        dplyr::select(dark, substrate, vegetation) %>%
-        lapply(function(x, out_dir, prefix){
-                   img_md <- x[1] %>% parse_img_name()
-                   img_date <- format(as.POSIXct(img_md["acquisition"], 
-                                      format = "%Y%m%d"), "%Y-%m-%d")
-                   img_band <- unlist(strsplit(img_md[length(img_md)], 
-                                      split = "[.]"))[1] 
-                   out_fn <- file.path(out_dir, paste(prefix, img_md["path_row"],
-                                       img_date, img_band, "STACK_BRICK.tif", sep = '_'))
-                   x %>% gdal_merge(out_filename = out_fn, separate = TRUE, 
-                                    of = "GTiff", creation_option = "BIGTIFF=YES",
-                                    init = no_data, a_nodata = no_data) %>%
-                       return()
-               }, out_dir = brick_path, 
-               prefix = brick_prefix)
+    # Build bricks using the spectral mixture model.
+    mix_brick <- brick_imgs %>% build_spectral_mixture_brick(field_name = "files",
+                                                             brick_prefix = brick_prefix,
+                                                             brick_path = brick_path, 
+                                                             brick_n_img = brick_n_img,
+                                                             no_data = no_data,
+                                                             gdal_format = gdal_format,
+                                                             gdal_options = gdal_options,
+                                                             tmp_dir = tmp_dir)
 
     # remove 
     brick_imgs %>% dplyr::pull(mixture) %>% unlist() %>% file.remove()
 
-    return(list(brick_bands = brick_files, brick_index = vi_brick, brick_mixture = mix_brick))
+    # build the cloud mask brick
+    cloud_bricks <- brick_imgs %>% build_cloud_brick(field_name = "files")
+
+    return(list(brick_bands = brick_files, brick_index = vi_brick, brick_mixture = mix_brick, brick_cloud = cloud_bricks))
 }
 
 
@@ -488,7 +510,7 @@ build_brick_tibble <- function(landsat_path, modis_path, scene_shp, tile_shp,
                                scenes = NULL, from = NULL, to = NULL,
                                max_ts_hole = 1, min_miss_ratio = 0.95){
 
-    Deprecated("build_brick_tibble2")
+    .Deprecated("build_brick_tibble2")
 
     if (!all(dir.exists(landsat_path), dir.exists(modis_path))) {
         stop("Directory not found!")
@@ -621,6 +643,110 @@ build_brick_tibble2 <- function(landsat_path, modis_path, scene_shp, tile_shp,
 }
 
 
+#' @title Helper function for building cloud bricks.
+#' @author Alber Sanchez, \email{alber.ipia@@inpe.br}
+#' @description Build a SITS brick masking the clouds in the images.
+#'
+#' @param brick_imgs   A tibble with metadata of satellite imagery (see build_brick_tibble2).
+#' @param field_name   A length-one character. The name of a column in brick_imgs with paths to image files.
+#' @param brick_prefix A lengh-one character. Prefix to append to produced file names.
+#' @param brick_path   A length-one character. A path for storing the resulting bricks.
+#' @param brick_scene  A length-one character. The scene or tile of the brick.
+#' @param no_data      A length-one numeric. The value for no data.
+#' @param gdal_format  A length-one character. Gdal format of the output file.
+#' @param gdal_options A character. Options passed to gdal for raster creation.
+#' @param tmp_dir      A length-one character. A path to a folder for storing temporal files.
+#' @return             A lenth-one character. Path to a brick file.
+build_cloud_brick <- function(brick_imgs, field_name, brick_prefix, brick_path, 
+                              brick_scene, no_data = -9999,
+                              gdal_format = "GTiff", gdal_options = c("TILED=YES",
+                                  "COPY_SRC_OVERVIEWS=YES", "COMPRESS=LZW"),
+                              tmp_dir = tempdir()){
+    cloud_mask <- NULL
+    brick_imgs <- brick_imgs %>%
+        dplyr::mutate(pixel_qa = purrr::map_chr(.[[field_name]], function(x){
+            fname <- NULL 
+            x %>% dplyr::mutate(fname = basename(file_path)) %>%
+                dplyr::filter(stringr::str_detect(fname, "_pixel_qa.tif$")) %>%
+                ensurer::ensure_that(nrow(.) == 1, err_desc = "Error while finding the QA band of image") %>%
+                dplyr::pull(file_path) %>%
+                return()
+        })) %>%
+        dplyr::mutate(cloud_mask = purrr::map_chr(.$pixel_qa, function(x){
+            x %>%
+                gdal_calc(
+                    out_filename <- tempfile(pattern = paste0(tools::file_path_sans_ext(basename(x)), '_'),
+                                             tmpdir = tmp_dir, fileext = ".tif"),
+                    expression = "((numpy.bitwise_and(A, 40) != 0) * 1).astype(int16)",
+                    dstnodata = no_data,
+                    out_format = gdal_format,
+                    creation_option = gdal_options)
+        }))
+    #
+    img_date <- brick_imgs %>% dplyr::pull(img_date) %>% sort() %>% dplyr::first()
+    cloud_brick <- brick_imgs %>% dplyr::pull(cloud_mask) %>% pile_files(
+        out_fn <- file.path(brick_path, paste(brick_prefix, brick_scene, img_date, "cloud", "STACK_BRICK.tif", sep = '_')),
+        gdal_format = gdal_format,
+        no_data = no_data,
+        gdal_options = gdal_options) %>%
+        return()
+}
+
+
+#' @title Helper function for building spectral mixture model bricks.
+#' @author Alber Sanchez, \email{alber.ipia@@inpe.br}
+#' @description Build a SITS brick masking the clouds in the images.
+#'
+#' @param brick_imgs   A tibble with metadata of satellite imagery (see build_brick_tibble2).
+#' @param field_name   A length-one character. The name of a column in brick_imgs with paths to image files.
+#' @param brick_prefix A lengh-one character. Prefix to append to produced file names.
+#' @param brick_path   A length-one character. A path for storing the resulting bricks.
+#' @param brick_n_img     A length-one integer. The number of images to include in a brick.
+#' @param no_data      A length-one numeric. The value for no data.
+#' @param gdal_format  A length-one character. Gdal format of the output file.
+#' @param gdal_options A character.
+#' @param tmp_dir      A length-one character. A path to a folder for storing temporal files.
+#' @return             A tibble of metadata about the created bricks.
+build_spectral_mixture_brick <- function(brick_imgs, field_name, brick_prefix,
+                                         brick_path, brick_n_img,
+                                         no_data = -9999, gdal_format = "GTiff",
+                                         gdal_options = c("TILED=YES",
+                                             "COPY_SRC_OVERVIEWS=YES",
+                                             "COMPRESS=LZW"),
+                                         tmp_dir = tempdir()){
+    dark <- mixture <- substrate <-vegetation <- NULL
+
+    brick_imgs <- brick_imgs %>% dplyr::mutate(mixture = purrr::map(.[[field_name]], 
+        function(x){
+            x %>% unlist() %>% compute_mixture_model(out_dir = tmp_dir, landsat_sat = 8, no_data = no_data) %>%
+                tibble::enframe(name = "end_member", value = "file_path") %>%
+                tidyr::spread(key = "end_member", value = "file_path") %>%
+                return()
+        }))
+    mix_brick <- brick_imgs %>% tidyr::unnest(mixture) %>% 
+        dplyr::select(dark, substrate, vegetation) %>%
+        lapply(function(x, out_dir, prefix){
+                   img_md <- x[1] %>% parse_img_name()
+                   img_date <- format(as.POSIXct(img_md["acquisition"], 
+                                      format = "%Y%m%d"), "%Y-%m-%d")
+                   img_band <- unlist(strsplit(img_md[length(img_md)], 
+                                      split = "[.]"))[1] 
+                   out_fn <- file.path(out_dir, paste(prefix, img_md["path_row"],
+                                       img_date, img_band, "STACK_BRICK.tif", sep = '_'))
+                   x %>% gdal_merge(out_filename = out_fn, separate = TRUE, 
+                                    of = gdal_format, creation_option = gdal_options,
+                                    init = no_data, a_nodata = no_data) %>%
+                       return()
+               }, out_dir = brick_path, 
+               prefix = brick_prefix) %>%
+        unlist() %>%
+        tibble::enframe(name = NULL) %>%
+        dplyr::mutate(n_img = get_number_of_bands(value)) %>%
+        ensurer::ensure_that(all(.$n_img == brick_n_img)) %>%
+        return()
+}
+
+
 #' @title Group images into time series
 #' @author Alber Sanchez, \email{alber.ipia@@inpe.br}
 #' @description This function takes the input tibble of images and return a
@@ -647,7 +773,7 @@ build_ts <- function(img_tb, prodes_year_start = "-08-01", image_step = 16) {
 }
 
 
-#' @title Compute a misture model.
+#' @title Compute a mixture model.
 #' @author Alber Sanchez, \email{alber.ipia@@inpe.br}
 #' @description Compute vegetation indexes from bricks.
 #'
@@ -713,7 +839,7 @@ compute_mixture_model <- function(file_paths, out_dir, landsat_sat = '8', no_dat
 #' @param brick_pattern A length-one character. Regular expression used to filter the files in brick_path.
 #' @param vi_index      A character. The indexes to be computed.
 #' @param no_data       A length-one numeric. The value for no data.
-#' @param gdal_options  A character.
+#' @param gdal_options  A character. Options passed to gdal for raster creation.
 #' @return              A character. Path to the created vegetation index bricks.
 #' @export
 compute_vi <- function(brick_path, brick_pattern = "^brick_.*[.]tif$",
