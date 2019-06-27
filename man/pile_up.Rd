@@ -2,7 +2,7 @@
 % Please edit documentation in R/brick.R
 \name{pile_up}
 \alias{pile_up}
-\title{Pile images into files by band.}
+\title{Pile images into files..}
 \usage{
 pile_up(brick_imgs, file_col, brick_bands, brick_prefix, brick_scene,
   out_dir, no_data, gdal_options)
@@ -28,7 +28,7 @@ pile_up(brick_imgs, file_col, brick_bands, brick_prefix, brick_scene,
 A tibble of the matching PRODES dates and NA for the
 }
 \description{
-Pile images into files by band.
+Pile images into files.
 }
 \author{
 Alber Sanchez, \email{alber.ipia@inpe.br}

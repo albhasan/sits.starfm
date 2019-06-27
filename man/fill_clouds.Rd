@@ -2,16 +2,13 @@
 % Please edit documentation in R/starfm.R
 \name{fill_clouds}
 \alias{fill_clouds}
-\title{Fill in the clouds of img with the pixels from starfm.}
+\title{Fill in the clouds of img with the pixels from StarFM.}
 \usage{
-fill_clouds(img, tmp_dir = NULL)
+fill_clouds(img)
 }
 \arguments{
 \item{img}{A one-row tibble including the variables img_date, sat_image,
 files, neigh, tile, scene, and  starfm.}
-
-\item{tmp_dir}{A length-one character. A path to store intermediate files.
-NULL by default.}
 }
 \value{
 A character. Path to files.

@@ -4,24 +4,20 @@
 \alias{run_starFM}
 \title{Run the StarFM fusion model.}
 \usage{
-run_starFM(img0_f, img1_f, band, out_filename = NULL, tmp_dir = NULL)
+run_starFM(img_t0, img_t1, band, out_file = NULL)
 }
 \arguments{
-\item{img0_f}{A one-row tibble.}
+\item{img_t0}{A one-row tibble. Metadata of the image at time 0.}
 
-\item{img1_f}{A one-row tibble.}
+\item{img_t1}{A one-row tibble. Metadata of the image at time 1.}
 
 \item{band}{A length-one character. The Landsat band to process.}
 
-\item{out_filename}{A length-one character. The path to the results. NULL by
-default.}
-
-\item{tmp_dir}{A length-one character. A path to store intermediate
-files. NULL by default.}
+\item{out_file}{A length-one character. The path to the results.}
 }
 \value{
-A length-four character. The paths to the StarFM result
-and its inputs, t1_fine, t1_coarse, and t0_coarse.
+A length-four character. The paths to the StarFM result and
+its inputs, t1_fine, t1_coarse, t0_coarse, and StarFM configuration file.
 }
 \description{
 Run the StarFM fusion model.
