@@ -14,36 +14,16 @@ knitr::opts_chunk$set(
 ```
 # sits.starfm
 
-The goal of sits.starfm is to ...
+This package helps building bricks of satellite imagery for classification using the Machine Learning algorithms in the SITS package. It provides helper functions to deal with the clouds such as STARFM and masking.
 
 ## Installation
 
-You can install the released version of sits.starfm from [CRAN](https://CRAN.R-project.org) with:
-
 ``` r
-install.packages("sits.starfm")
+library(devtools)
+install_github("albhasan/sits.starfm")
 ```
 
 ## Example
 
-This is a basic example which shows you how to solve a common problem:
+Some example scripts are included in the *inst/examples* directory (they require server setup).
 
-```{r example}
-## basic example code
-```
-
-What is special about using `README.Rmd` instead of just `README.md`? You can include R chunks like so:
-
-```{r cars}
-summary(cars)
-```
-
-You'll still need to render `README.Rmd` regularly, to keep `README.md` up-to-date.
-
-You can also embed plots, for example:
-
-```{r pressure, echo = FALSE}
-plot(pressure)
-```
-
-In that case, don't forget to commit and push the resulting figure files, so they display on GitHub!
