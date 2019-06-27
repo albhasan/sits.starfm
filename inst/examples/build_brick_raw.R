@@ -39,7 +39,7 @@ brick_to    <- opt$to
 #brick_to     <- "2015-07-30"
 #brick_from   <- "2013-08-01"
 #brick_to     <- "2014-07-30"
-brick_bands  <- c("sr_band2", "sr_band4", "sr_band5", "sr_band7")
+brick_bands  <- c("sr_band2", "sr_band3", "sr_band4", "sr_band5", "sr_band6", "sr_band7")
 brick_path   <- "/home/alber/shared/brick_raw"
 brick_n_img  <- 23
 brick_prefix <- "LC8SR-RAW"
