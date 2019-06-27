@@ -199,7 +199,7 @@ get_next_image <- function(brick_imgs, ref_row_number, cloud_threshold = 0.1) {
     if (ref_row_number < nrow(brick_imgs))
         few_clouds <- brick_imgs %>% dplyr::slice(ref_row_number:nrow(.)) %>%
             dplyr::filter(cloud_cov == min(cloud_cov, na.rm = TRUE)) %>%
-            dplyr::filter(row_number() == 1)
+            dplyr::filter(dplyr::row_number() == 1)
     # get the reference data
     ref_row <- brick_imgs %>% dplyr::slice(ref_row_number)
     if (is.na(ref_row$cloud_cov)) {
@@ -221,7 +221,7 @@ get_next_image <- function(brick_imgs, ref_row_number, cloud_threshold = 0.1) {
                    cloud_threshold)
     if (length(few_clouds) > 1 && !is.na(few_clouds))
         msg <- msg %>%
-        stringr::str_c(" Found instead the image with the fewest clouds.")
+            stringr::str_c(" Found instead the image with the fewest clouds.")
     warning(msg)
     return(few_clouds)
 }

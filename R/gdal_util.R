@@ -608,12 +608,15 @@ get_number_of_bands <- function(filepath) {
 }
 
 .is_input_file_valid <- function(files){
-    if (any(vapply(files, is.null, logical(1))))
-        return(FALSE)
-    if (any(vapply(files, is.na, logical(1))))
-        return(FALSE)
-    if (!all(vapply(files, file.exists, logical(1))))
-        return(FALSE)
+    #TODO: This function can't handle HDF4 datasets.
+    if(!any(grepl("HDF4_EOS", files))){
+            if (any(vapply(files, is.null, logical(1))))
+            return(FALSE)
+        if (any(vapply(files, is.na, logical(1))))
+            return(FALSE)
+        if (!all(vapply(files, file.exists, logical(1))))
+            return(FALSE)
+    }
     return(TRUE)
 }
 
