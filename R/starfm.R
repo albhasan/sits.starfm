@@ -1,99 +1,85 @@
-#' @title  Fill in the clouds of img with the pixels from starfm.
+#' @title  Fill in the clouds of img with the pixels from StarFM.
 #' @author Alber Sanchez, \email{alber.ipia@@inpe.br}
 #' @description Fill in the clouds of img with the pixels from starfm.
 #'
 #' @param img     A one-row tibble including the variables img_date, sat_image,
 #' files, neigh, tile, scene, and  starfm.
-#' @param tmp_dir A length-one character. A path to store intermediate files.
-#' NULL by default.
 #' @return        A character. Path to files.
 #' @export
-fill_clouds <- function(img, tmp_dir = NULL) {
-    if (is.null(tmp_dir))
-        tmp_dir <- tempdir()
-    tmp_base_name <- basename(tempfile(pattern = "", tmpdir = ""))
+fill_clouds <- function(img) {
 
     if (length(unlist(img$starfm)) == 1 && is.na(unlist(img$starfm))) {
         return(NA)
     }
 
-    # No image to fill. Return StarFM
-    if (is.na(img$sat_image)) {
-        sfm_files <- img %>% dplyr::pull(starfm) %>% dplyr::bind_rows() %>%
-            dplyr::pull(starfm)
-        return(sfm_files)
-    }
+    # No image to fill. Return StarFM.
+    if (is.na(img$sat_image))
+        img %>% dplyr::pull(starfm) %>%
+            dplyr::bind_rows() %>%
+            dplyr::pull(starfm) %>%
+            return()
 
-    # get QA files
-    pixel_qa <- img %>% dplyr::pull(files) %>% unlist() %>%
-        stringr::str_subset(pattern = "pixel_qa")
-    neigh_qa <- ""
-    if (!all(is.na(unlist(dplyr::pull(img, neigh)))))
-        neigh_qa <- img %>% dplyr::pull(neigh) %>% dplyr::bind_rows() %>%
-        dplyr::pull(files) %>% unlist() %>%
+    # Get QA files.
+    pixel_qa <- img %>% dplyr::pull(files) %>%
+        unlist() %>%
         stringr::str_subset(pattern = "pixel_qa")
 
-    # get gdal parameters
-    param <- list(fileext = ".bin", out_format = "ENVI",
-                  creation_option = "SUFFIX=ADD", resampling = "near",
+    # Get gdal parameters.
+    param <- list(fileext = ".bin",
+                  out_format = "ENVI",
+                  creation_option = "SUFFIX=ADD",
+                  resampling = "near",
                   dstnodata = -9999) %>%
         append(get_landsat_metadata(pixel_qa[1]))
 
-    # build the cloud mask
-    qa_mosaic <- neigh_qa %>% c(pixel_qa) %>%
-        gdal_warp(out_filename =
-                      file.path(tmp_dir, paste0(paste("qa_mosaic",
-                                                      img$sat_image,
-                                                      tmp_base_name, sep = "_"),
-                                                param[["fileext"]])),
-                  out_format = param[["out_format"]],
-                  creation_option = param[["creation_option"]],
-                  extent_output = param[["extent_output"]],
-                  target_srs = param[["crs"]], size_ouput = param[["img_size"]],
-                  resampling = param[["resampling"]],
-                  srcnodata = param[["srcnodata_l8"]],
-                  dstnodata = param[["dstnodata"]])
+    # Build the cloud mask.
+    qa_mosaic <- pixel_qa %>%
+        gdal_warp(
+            out_filename = tempfile(pattern = paste("qa_mosaic", 
+                                                   img$sat_image,
+                                                   sep = "_"),
+                                   fileext = param[["fileext"]]),
+            out_format = param[["out_format"]],
+            creation_option = param[["creation_option"]],
+            extent_output = param[["extent_output"]],
+            target_srs = param[["crs"]],
+            size_ouput = param[["img_size"]],
+            resampling = param[["resampling"]],
+            srcnodata = param[["srcnodata_l8"]],
+            dstnodata = param[["dstnodata"]])
+
     img_mask <- qa_mosaic %>%
         gdal_calc(
-            out_filename =
-                file.path(tmp_dir, paste0(paste("cloud_mask",
-                                                img$sat_image,
-                                                tmp_base_name, sep = "_"),
-                                          param[["fileext"]])),
+            out_filename = tempfile(pattern = paste("cloud_mask", 
+                                                   img$sat_image,
+                                                   sep = "_"),
+                                   fileext = param[["fileext"]]),
             expression = "((numpy.bitwise_and(A, 40) != 0) * 1).astype(int16)",
             dstnodata = param[["dstnodata"]],
             out_format = param[["out_format"]],
             creation_option = param[["creation_option"]])
 
-    # fill in the clouds using StarFM
-    starfm_tb <- img %>% dplyr::pull(starfm) %>% dplyr::bind_rows() %>%
-        dplyr::select(t0_fine, starfm) %>%
-        dplyr::mutate(mask = img_mask, band = get_landsat_band(starfm))
-
-    # TODO: use ensurer::ensure
-    if (nrow(starfm_tb) < 1) {
-        warning("No files found!")
-        return(NA)
+    # Helper function to do the filling.
+    .fill_mask <- function(band, t0_fine, starfm, mask){
+        if (is.na(t0_fine))
+            return(starfm)
+        c(t0_fine, mask, starfm) %>%
+            gdal_calc(
+                out_filename = tempfile(pattern = paste("filled", img$sat_image,
+                                                        band, sep = "_"),
+                                        fileext = param[["fileext"]]),
+                expression = "(numpy.where(B, C, A)).astype(int16)") %>%
+            return()
     }
 
-    img_filled <- lapply(1:(nrow(starfm_tb)), function(x, starfm_tb) {
-        row_x <- starfm_tb %>% dplyr::slice(x)
-        # there is no image, hence there are no clouds to fill in
-        if (is.na(row_x$t0_fine))
-            row_x %>% dplyr::pull(starfm) %>%
-            return()
-        # do the filling
-        row_x %>% dplyr::select(t0_fine, mask, starfm) %>% unlist() %>%
-            gdal_calc(out_filename =
-                          file.path(tmp_dir,
-                                    paste0(paste("filled", img$sat_image,
-                                                 row_x$band, tmp_base_name,
-                                                 sep = "_"),
-                                           param[["fileext"]])),
-                      expression = "(numpy.where(B, C, A)).astype(int16)") %>%
-            return()
-    }, starfm_tb = starfm_tb)
-    img_filled %>% unlist() %>%
+    # Fill in the clouds using StarFM images.
+    img %>% dplyr::pull(starfm) %>%
+        dplyr::bind_rows() %>%
+        dplyr::select(band, t0_fine, starfm) %>%
+        dplyr::mutate(mask = img_mask) %>%
+        ensurer::ensure_that(nrow(.) > 0, err_desc = "No StarFM image found.") %>%
+        purrr::pmap(.fill_mask) %>%
+        unlist() %>%
         return()
 }
 
@@ -101,109 +87,67 @@ fill_clouds <- function(img, tmp_dir = NULL) {
 #' @author Alber Sanchez, \email{alber.ipia@@inpe.br}
 #' @description Run the StarFM fusion model.
 #'
-#' @param img0_f       A one-row tibble.
-#' @param img1_f       A one-row tibble.
-#' @param band         A length-one character. The Landsat band to process.
-#' @param out_filename A length-one character. The path to the results. NULL by
-#' default.
-#' @param tmp_dir      A length-one character. A path to store intermediate
-#' files. NULL by default.
-#' @return             A length-four character. The paths to the StarFM result
-#' and its inputs, t1_fine, t1_coarse, and t0_coarse.
+#' @param img_t0   A one-row tibble. Metadata of the image at time 0.
+#' @param img_t1   A one-row tibble. Metadata of the image at time 1.
+#' @param band     A length-one character. The Landsat band to process.
+#' @param out_file A length-one character. The path to the results.
+#' @return         A length-four character. The paths to the StarFM result and
+#' its inputs, t1_fine, t1_coarse, t0_coarse, and StarFM configuration file.
 #' @export
-run_starFM <- function(img0_f, img1_f, band, out_filename = NULL, tmp_dir = NULL) {
-    if(!exists("logger")){
-        logger                 <- log4r::create.logger()
-    }
+run_starFM <- function(img_t0, img_t1, band, out_file = NULL) {
 
-    log4r::debug(logger, sprintf("Starting starfm for %s",
-                                 c(img0_f$sat_image, img1_f$sat_image, band,
-                                   out_filename, tmp_dir)))
-
-    # TODO create masks required by starFM ----
-    # not working, StarFM throws exception!
+    # NOTE: StarFM doesn't work when masks are used; it throws an exception.:
     # gdal_calc.py --type=Byte -A LC08_L1TP_226064_20150924_20170403_01_T1_pixel_qa.tif --outfile=result.tif --calc="((numpy.bitwise_and(A, 40) == 0) * 1).astype(bool_)"
 
-    # NOTE: random suffix, unrelated to tmp_dir
-    tmp_base_name <- basename(tempfile(pattern = paste0(band, "_"),
-                                       tmpdir = ""))
-
-    # where to store temporal files. OS tempdir's life is very short
-    if (is.null(tmp_dir))
-        tmp_dir <- tempdir()
-    if (!dir.exists(dirname(out_filename))) {
-        warning("StarFM result directory not found. Creating it...")
-        dir.create(dirname(out_filename))
-    }
-
-    # util functions
-    .get_img_fine <- function(imgX_f) {
-        imgX_f %>% dplyr::pull(files) %>% unlist() %>%
-            stringr::str_subset(band) %>% dplyr::first() %>%
-            return()
-    }
-    .get_neigh_fine <- function(imgX_f) {
-        if (is.na(imgX_f$neigh))
-            return(NA)
-        row_neigh <- imgX_f %>% dplyr::pull(neigh) %>% dplyr::bind_rows()
-        if (nrow(row_neigh) < 1)
-            return(NA)
-        row_neigh %>% dplyr::pull(files) %>% unlist() %>%
-            stringr::str_subset(band) %>%
-            return()
-    }
-    .get_img_coarse <- function(imgX_f) {
-        imgX_f %>% dplyr::pull(tile) %>% dplyr::bind_rows() %>%
-            dplyr::pull(file_path) %>%
-            return()
-    }
-    .call_gadal_warp <- function(input_files, out_filename, param) {
-        gdal_warp(input_files = input_files, out_filename = out_filename,
+    .call_gadal_warp <- function(input_files, out_filename, param, img_type, band) {
+        stopifnot(img_type %in% c("landsat8", "MOD13Q1"))
+        if (img_type == "landsat8"){
+            fill_value <- SPECS_L8_SR %>%
+                dplyr::filter(band_designation == band) %>%
+                dplyr::pull(fill_value)
+        }else if (img_type == "MOD13Q1") {
+            fill_value <- SPECS_MOD13Q1 %>%
+                dplyr::filter(l8_sr_designation == band) %>%
+                dplyr::pull(fill_value)
+        }
+        gdal_warp(input_files = input_files,
+                  out_filename = out_filename,
                   out_format = param[["out_format"]],
                   creation_option = param[["creation_option"]],
                   extent_output = param[["extent_output"]],
-                  target_srs = param[["crs"]], size_ouput = param[["img_size"]],
+                  target_srs = param[["crs"]],
+                  size_ouput = param[["img_size"]],
                   resampling = param[["resampling"]],
-                  srcnodata = param[["srcnodata_l8"]],
+                  srcnodata = fill_value,
                   dstnodata = param[["dstnodata"]]) %>%
             return()
     }
 
     # get image's files
-    t1_fine <- img1_f %>% .get_img_fine()
-    t0_fine <- img0_f %>% .get_img_fine()
-    t1_fine_neigh <- img1_f %>% .get_neigh_fine()
-    t0_fine_neigh <- img0_f %>% .get_neigh_fine()
-    t1_coarse <- img1_f %>% .get_img_coarse()
-    t0_coarse <- img0_f %>% .get_img_coarse()
+    t0_coarse <- img_t0 %>% dplyr::pull(tile) %>% dplyr::bind_rows() %>% dplyr::pull(file_path) %>% ensurer::ensure_that(length(.) > 0, err_desc = "Unable to find band")
+    t1_coarse <- img_t1 %>% dplyr::pull(tile) %>% dplyr::bind_rows() %>% dplyr::pull(file_path) %>% ensurer::ensure_that(length(.) > 0, err_desc = "Unable to find band")
+    t0_fine <- img_t0 %>% dplyr::pull(files) %>% unlist() %>% stringr::str_subset(band) %>% ensurer::ensure_that(length(.) == 1, err_desc = "Unable to find band")
+    t1_fine <- img_t1 %>% dplyr::pull(files) %>% unlist() %>% stringr::str_subset(band) %>% ensurer::ensure_that(length(.) == 1, err_desc = "Unable to find band")
 
-    # get parameters
-    param <- list(fileext = ".bin", out_format = "ENVI",
-                  creation_option = "SUFFIX=ADD", resampling = "near",
-                  dstnodata = -9999, nomd = TRUE)
-    if (!is.na(img0_f$sat_image)) {
-        param <- param %>% append(get_landsat_metadata(t0_fine))
-    } else {
-        param <- param %>% append(get_landsat_metadata(t1_fine))
-    }
+    param <- list(fileext = ".bin",
+                  out_format = "ENVI",
+                  creation_option = "SUFFIX=ADD",
+                  resampling = "near",
+                  dstnodata = -9999,
+                  nomd = TRUE) %>%
+        append(get_landsat_metadata(t0_fine))
 
-    prediction_date <- img0_f %>% dplyr::pull(tile) %>%
-        unlist(recursive = FALSE) %>% dplyr::as_tibble() %>%
-        dplyr::pull(img_date) %>% unique()
-    if (length(prediction_date) != 1) {
-        warning("Date conflict in the MODIS images")
-        prediction_date <- prediction_date[1]
-    }
+    prediction_date <- img_t0 %>%
+        dplyr::pull(tile) %>%
+        dplyr::bind_rows() %>%
+        dplyr::pull(img_date) %>%
+        unique() %>%
+        ensurer::ensure_that(length(.) == 1,
+                             err_desc = "MODIS images' dates mismatch.")
 
-    # Old Landsat 8 images use 0 as NO_DATA
-    # TODO: wrap call to gdallocationinfo
-    #pix00 <- call_os(command = "gdallocationinfo",
-    #                 args = c(t1_fine, "0", "0", "-valonly"), stdout = TRUE)
-    #if (as.numeric(pix00) != param[["srcnodata_l8"]])
-    #    stop("Invalid no data value for Landsat 8 images!")
+    # NOTE: Old Landsat 8 images use 0 as NO_DATA.
 
     # Uncertainty values. Taken from Gao:2017
-    # TODO: Move to data?
     uncertainty_landsat <- 50
     uncertainty_modis <- 50
     if (band %in% c("sr_band2", "sr_band3", "sr_band4")) {
@@ -211,59 +155,60 @@ run_starFM <- function(img0_f, img1_f, band, out_filename = NULL, tmp_dir = NULL
         uncertainty_modis <- 20
     }
 
-    if (length(t1_fine_neigh) != 8) {
-        warning(
-            sprintf("Not enough neighbor images to fill in the blanks of %s",
-                    img0_f$sat_image))
-    }
-
-    # mosaic, project and cut landsat & modis images
-    t1_fine <- t1_fine_neigh %>% c(t1_fine) %>% .[!is.na(.)] %>%
-        ensurer::ensure_that(length(.) > 0, err_desc = "Invalid t1_fine images!") %>%
+    # Mosaic, project and cut landsat & modis images.
+    t1_fine <- t1_fine %>%
         .call_gadal_warp(
-            out_filename =
-                file.path(tmp_dir, paste0(paste("t1_fine", img1_f$scene,
-                                                img1_f$img_date, tmp_base_name,
-                                                sep = "_"),
-                                          param[["fileext"]])), param)
-    t1_coarse <- t1_coarse %>% gdal_match_name(band = band) %>%
+            out_filename = tempfile(pattern = paste("t1_fine", img_t1$scene,
+                                                    band, img_t1$img_date,
+                                                    sep = "_"),
+                                    fileext = param[["fileext"]]),
+            param = param,
+	    img_type = "landsat8",
+            band = band)
+    t1_coarse <- t1_coarse %>%
+        gdal_match_name(band = band) %>%
         .call_gadal_warp(
-            out_filename =
-                file.path(tmp_dir,  paste0(paste("t1_coarse", img1_f$scene,
-                                                 img1_f$img_date, tmp_base_name,
-                                                 sep = "_"),
-                                           param[["fileext"]])), param)
+            out_filename = tempfile(pattern = paste("t1_coarse", img_t1$scene,
+                                                    band, img_t1$img_date,
+                                                    sep = "_"),
+                                    fileext = param[["fileext"]]),
+            param = param,
+            img_type = "MOD13Q1",
+            band = band)
     if (!is.na(t0_fine))
-        t0_fine <- t0_fine_neigh %>% c(t0_fine) %>% .[!is.na(.)] %>%
-        ensurer::ensure_that(length(.) > 0, err_desc = "Invalid t0_fine images!") %>%
+        t0_fine <- t0_fine %>% 
+            .call_gadal_warp(
+                out_filename = tempfile(pattern = paste("t0_fine", img_t0$scene,
+                                                        band, img_t1$img_date,
+                                                        sep = "_"),
+                                        fileext = param[["fileext"]]),
+                param = param,
+                img_type = "landsat8",
+                band = band)
+    t0_coarse <- t0_coarse %>%
+        gdal_match_name(band = band) %>%
         .call_gadal_warp(
-            out_filename =
-                file.path(tmp_dir, paste0(paste("t0_fine", img1_f$scene,
-                                                img1_f$img_date, tmp_base_name,
-                                                sep = "_"),
-                                          param[["fileext"]])), param)
-    t0_coarse <- t0_coarse %>% gdal_match_name(band = band) %>%
-        .call_gadal_warp(
-            out_filename =
-                file.path(tmp_dir, paste0(paste("t0_coarse", img0_f$scene,
-                                                prediction_date, tmp_base_name,
-                                                sep = "_"),
-                                          param[["fileext"]])), param)
+            out_filename = tempfile(pattern = paste("t0_coarse", img_t0$scene,
+                                                    band, prediction_date,
+                                                    sep = "_"),
+                                    fileext = param[["fileext"]]),
+            param = param,
+            img_type = "MOD13Q1",
+            band = band)
 
-    # StarFM configuration file
-    starfm_file <- file.path(tmp_dir,
-                             paste0(paste("starfm", img0_f$scene,
-                                          prediction_date, tmp_base_name,
-                                          sep = "_"), ".txt"))
-    if (is.null(out_filename) || is.na(out_filename))
-        out_filename <- starfm_file %>% tools::file_path_sans_ext() %>%
-        paste0(".bin")
-    file_con <- file(starfm_file)
+    # StarFM files.
+    starfm_conf <- tempfile(pattern = paste("starfm", img_t0$scene, band,
+                                             prediction_date, sep = "_"),
+                            fileext = ".txt")
+    if (is.null(out_file) || is.na(out_file))
+        out_file <- starfm_conf %>% tools::file_path_sans_ext() %>%
+            paste0(".bin")
+    file_con <- file(starfm_conf)
     writeLines(c("STARFM_PARAMETER_START", "NUM_IN_PAIRS = 1",
                  paste0("IN_PAIR_MODIS_FNAME = ", t1_coarse),
                  paste0("IN_PAIR_LANDSAT_FNAME = ", t1_fine),
                  paste0("IN_PDAY_MODIS_FNAME = ", t0_coarse),
-                 paste0("OUT_PDAY_LANDSAT_FNAME = ", out_filename),
+                 paste0("OUT_PDAY_LANDSAT_FNAME = ", out_file),
                  paste0("NROWS = ", param[["nrow"]]),
                  paste0("NCOLS = ", param[["ncol"]]),
                  paste0("RESOLUTION = ", param[["pixel_size_x"]]),
@@ -281,20 +226,16 @@ run_starFM <- function(img0_f, img1_f, band, out_filename = NULL, tmp_dir = NULL
     close(file_con)
 
     # call the fusion model
-    call_os(command = "StarFM.exe", args = starfm_file)
+    call_os(command = "StarFM.exe", args = starfm_conf)
 
     # add the projection parameters to image
     hdr_md <- t1_fine %>% paste0(".hdr") %>% readLines()
     hdr_md %>% stringr::str_subset("map info") %>%
-        write(file = paste0(out_filename, ".hdr"), append = TRUE)
+        write(file = paste0(out_file, ".hdr"), append = TRUE)
     hdr_md %>% stringr::str_subset("coordinate system string") %>%
-        write(file = paste0(out_filename, ".hdr"), append = TRUE)
+        write(file = paste0(out_file, ".hdr"), append = TRUE)
 
-    log4r::debug(logger,
-                 sprintf("Finishing starfm for %s",
-                         c(img0_f$sat_image, img1_f$sat_image, band,
-                           out_filename, tmp_dir)))
-    return(c(starfm = out_filename, t1_fine = t1_fine, t1_coarse = t1_coarse,
-             t0_fine = t0_fine, t0_coarse = t0_coarse, sfm_conf = starfm_file))
+    return(c(starfm = out_file, t1_fine = t1_fine, t1_coarse = t1_coarse,
+             t0_fine = t0_fine, t0_coarse = t0_coarse, sfm_conf = starfm_conf))
 }
 
