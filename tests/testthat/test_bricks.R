@@ -1,6 +1,5 @@
 context("Test the bricks")
 library(sits.starfm)
-library(sits.prodes)
 library(dplyr)
 library(testthat)
 
@@ -24,7 +23,7 @@ check_preconditions <- function() {
 
 test_that("Interpolated bricks", {
     check_preconditions()
-    path_to_bricks["l8mod_interp"] %>% list.files(pattern = "*tif$") %>% 
+    path_to_bricks["l8mod_interp"] %>% list.files(pattern = "*tif$") %>%
         length() %>% testthat::expect_gt(., 0)
 })
 

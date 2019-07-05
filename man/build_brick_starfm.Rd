@@ -2,7 +2,7 @@
 % Please edit documentation in R/brick.R
 \name{build_brick_starfm}
 \alias{build_brick_starfm}
-\title{Build a SITS brick using a fusion model (StarFM) to fill in the cloud gaps}
+\title{Build a SITS brick using a fusion model (StarFM) to fill in the cloud gaps.}
 \usage{
 build_brick_starfm(landsat_path, modis_path, scene_shp, tile_shp,
   brick_scene, brick_year, brick_bands, brick_path, cloud_threshold,
@@ -27,7 +27,7 @@ build_brick_starfm(landsat_path, modis_path, scene_shp, tile_shp,
 
 \item{brick_path}{A length-one character. A path for storing the resulting bricks.}
 
-\item{cloud_threshold}{A length-one numeric. The approximated proportion of clouds in the brick.}
+\item{cloud_threshold}{DEPRECATED. A length-one numeric. The approximated proportion of clouds in the brick.}
 
 \item{n_best_img}{A length-one numeric. Use only only this number of images. Best means less cloudy.}
 
@@ -45,7 +45,9 @@ build_brick_starfm(landsat_path, modis_path, scene_shp, tile_shp,
 A tibble.
 }
 \description{
-Build a SITS brick using a fusion odel (StarFM) to finnin the gaps.
+Build a SITS brick using a fusion odel (StarFM) to finnin the
+gaps. To build the StarFM model and for each image, this function finds the
+next best image using the mean MODIS-Landsat cloud cover as parameter.
 }
 \author{
 Alber Sanchez, \email{alber.ipia@inpe.br}
