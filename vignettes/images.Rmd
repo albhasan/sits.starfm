@@ -58,7 +58,7 @@ BRICK_IMAGES %>%
         ggplot2::geom_line( aes(x = id, y = cloud_cov, color = cloud_cov, group = prodes_year)) +
 	ggplot2::geom_point(aes(x = id, y = cloud_cov, color = cloud_cov)) +
 	ggplot2::facet_grid(scene ~ prodes_year) +
-	ggplot2::ggtitle("Cloud cover")
+	ggplot2::ggtitle("Image cloud cover")
 # ggsave(filename = "deleteme.png")
 
 ```
