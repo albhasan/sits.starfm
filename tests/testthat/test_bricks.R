@@ -23,10 +23,15 @@ check_preconditions <- function() {
 
 test_that("Interpolated bricks", {
     check_preconditions()
+<<<<<<< HEAD
     path_to_bricks["l8mod_interp"] %>% 
         list.files(pattern = "*tif$") %>%
         length() %>% 
         testthat::expect_gt(., 0)
+=======
+    path_to_bricks["l8mod_interp"] %>% list.files(pattern = "*tif$") %>%
+        length() %>% testthat::expect_gt(., 0)
+>>>>>>> fa8749fbc73d539dad9b4b7e8477cb79e3d569a0
 })
 
 
