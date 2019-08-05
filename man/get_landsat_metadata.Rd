@@ -4,10 +4,10 @@
 \alias{get_landsat_metadata}
 \title{Get the metadata required to call gdal's utilitaries.}
 \usage{
-get_landsat_metadata(img_path)
+get_landsat_metadata(file_path)
 }
 \arguments{
-\item{img_path}{A length-one character. Path to a file.}
+\item{file_path}{A length-one character. Path to a file.}
 }
 \value{
 A list of named elements.

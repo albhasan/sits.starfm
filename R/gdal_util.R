@@ -159,7 +159,7 @@ gdal_calc <- function(input_files,
 
     error <- call_os(command = "gdal_calc.py", args = params, dry_run = dry_run)
     if (error) {
-        warning("Failed call to gdal_calc")
+        warning(sprintf("Failed call to gdal_calc: %s", paste(args, collapse = " ")))
         return(NA_character_)
     }
     return(out_filename)
@@ -587,7 +587,7 @@ gdal_warp <- function(input_files,
 
 
 #' @title Get the number of bands in a file.
-#' @author Alber Sanchez, \email{albequietr.ipia@@inpe.br}
+#' @author Alber Sanchez, \email{alber.ipia@@inpe.br}
 #' @description Get the number of bands in a file.
 #'
 #' @param filepath A character. Path to a file.

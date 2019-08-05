@@ -16,5 +16,5 @@ A numeric.
 Get the number of bands in a file.
 }
 \author{
-Alber Sanchez, \email{albequietr.ipia@inpe.br}
+Alber Sanchez, \email{alber.ipia@inpe.br}
 }

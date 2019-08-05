@@ -1,8 +1,83 @@
-#' @title Build a table from the given images.
+#' @title Build a table from the images in the given directory.
 #' @author Alber Sanchez, \email{alber.ipia@@inpe.br}
 #' @description Build a table from the given images.
 #'
-#' @param img_path A charater. Path to Landsat 8 images.
+#' @param in_dir            A charater. Path to a directory with images.
+#' @param pattern           A length-one character. Pattern used to filter the 
+#' files.
+#' @param prodes_year_start A length-one character. The start month and date of 
+#' the PRODES year. The default is "-08-01"
+#' @return A tibble
+#' @export
+#' @importFrom rlang .data
+build_hls_tibble <- function(in_dir, pattern, prodes_year_start = "-08-01") {
+
+    product <- type <- v1 <- v2 <- ydoy <- NULL
+
+    # Get HLS metadata from the file name.
+    .get_md <- function(file_path){
+        v1 <- v2 <- NULL
+        res <- file_path %>% 
+            basename() %>% 
+            stringr::str_split(pattern = "[.]") %>% 
+            as.data.frame(stringsAsFactors = FALSE) %>% 
+            t()
+        colnames(res) <- c("type", "product", "tile", "ydoy", "v1", "v2", "fileext")
+        rownames(res) <- NULL
+        res <- res %>% 
+            tibble::as_tibble() %>% 
+            dplyr::mutate(version = paste(v1, v2, sep = '.')) %>% 
+            dplyr::select("type", "product", "tile", "ydoy", "version", "fileext")
+        res$file_path <- file_path
+        return(res)
+    }
+
+    res <- in_dir %>%
+        list.files(pattern = pattern, full.names = TRUE, recursive = TRUE) %>% 
+        .get_md() %>% 
+        dplyr::select(-c(type, version)) %>% 
+        dplyr::mutate(img_date = ydoy %>% strptime(format = '%Y%j') %>% as.Date(),
+                      pyear = dplyr::if_else(lubridate::month(img_date) < 8, 
+                                             lubridate::year(img_date), 
+                                             lubridate::year(img_date) + 1))
+
+    # HLS files share the same extent, there is no need to read them all.
+    img_extent <- res %>%
+        dplyr::select(file_path, product, tile) %>%
+        dplyr::group_by(product, tile) %>%
+        dplyr::slice(1) %>%
+        dplyr::ungroup() %>%
+        dplyr::mutate(img_extent = purrr::map(file_path, function(file_path){
+            if (stringr::str_detect(basename(file_path), "L30")) {
+	        band = "band01"
+	    } else if (stringr::str_detect(basename(file_path), "S30")) {
+	        band = "B01"
+	    }else{
+	        warning("Unknown image type.")
+	        return(NA)
+	    }
+	    ext <- file_path %>%
+	        read_hdf(band = band) %>%
+	        raster::projectExtent(crs = "+proj=longlat +datum=WGS84") %>%
+	        raster::extent() %>%
+	        attributes()
+	    ext[["class"]] <- NULL
+	    return(unlist(ext))
+	})) %>%
+        dplyr::select(-file_path)
+
+    res %>%
+        dplyr::left_join(img_extent, by = c("product","tile")) %>%
+        dplyr::select(-ydoy) %>%
+        return()
+}
+
+
+#' @title Build a table from the images in the given directory.
+#' @author Alber Sanchez, \email{alber.ipia@@inpe.br}
+#' @description Build a table from the given images.
+#'
+#' @param in_dir   A charater. Path to a directory with images.
 #' @param pattern  A length-one character. Pattern used to filter the files.
 #' @param from     A length-one character. The start date.
 #' @param to       A length-one character. The end date.
@@ -10,22 +85,27 @@
 #' the PRODES year. The default is "-08-01"
 #' @return A tibble
 #' @export
-build_landsat_tibble <- function(img_path, pattern = NULL, from = NULL,
+build_landsat_tibble <- function(in_dir, pattern = NULL, from = NULL,
                                  to = NULL, prodes_year_start = "-08-01") {
-    l8_files <- img_path %>% list.files(pattern = pattern, full.names = TRUE,
-                                        recursive = TRUE) %>%
+    l8_files <- in_dir %>%
+        list.files(pattern = pattern, full.names = TRUE, recursive = TRUE) %>%
         ensurer::ensure_that(length(.) > 0,
-                             err_desc = sprintf("No files found in %s", img_path))
-    l8_img <- l8_files %>% stringr::str_subset(pattern = ".*[.]tif$") %>%
-        tibble::enframe(name = NULL) %>% dplyr::rename(file_path = value) %>%
-        dplyr::mutate(sat_image = substr(basename(file_path), 1, 40)) %>%
+                             err_desc = sprintf("No files found in %s", in_dir))
+
+    file_path <- img_date <- sat_image <- tile <- NULL
+    l8_img <- l8_files %>%
+        stringr::str_subset(pattern = ".*[.]tif$") %>%
+        tibble::enframe(name = NULL) %>%
+        dplyr::rename(file_path = "value") %>%
+        dplyr::mutate(sat_image = stringr::str_sub(basename(file_path), 1, 40)) %>%
         dplyr::select(sat_image, file_path) %>%
         tidyr::nest(file_path, .key = "files") %>%
         dplyr::mutate(tile = substr(sat_image, 11, 16),
+                      tier = substr(sat_image, 39, 40),
                       img_date  = lubridate::ymd(substr(sat_image, 18, 25)),
                       proc_date = lubridate::ymd(substr(sat_image, 27, 34)),
-                      prodes_year = match_prodes_year(
-                          img_date, prodes_start = prodes_year_start)) %>%
+                      prodes_year = match_prodes_year(img_date,
+                                                      prodes_start = prodes_year_start)) %>%
         dplyr::distinct(tile, img_date, .keep_all = TRUE) %>%
         dplyr::arrange(tile, img_date)
     if (!all(is.null(from), is.null(to))) {
@@ -43,21 +123,26 @@ build_landsat_tibble <- function(img_path, pattern = NULL, from = NULL,
         dplyr::mutate(sat_image = substr(basename(file_path), 1, 40))
     l8_cloud_cov$cloud_cov <-
         purrr::map_dbl(l8_cloud_cov$file_path, function(x) {
-            x %>% readLines() %>% stringr::str_subset("CLOUD_COVER_LAND") %>%
-                stringr::str_split(" = ") %>% unlist() %>% dplyr::last() %>%
+            x %>% readLines() %>%
+                stringr::str_subset("CLOUD_COVER_LAND") %>%
+                stringr::str_split(" = ") %>%
+                unlist() %>%
+                dplyr::last() %>%
                 as.numeric() * 1/100
         })
-    l8_cloud_cov <- l8_cloud_cov %>% dplyr::select(sat_image, cloud_cov)
-    l8_img <- l8_img %>% dplyr::left_join(l8_cloud_cov, by = "sat_image")
+    l8_cloud_cov <- l8_cloud_cov %>%
+        dplyr::select(sat_image, cloud_cov)
+    l8_img <- l8_img %>%
+        dplyr::left_join(l8_cloud_cov, by = "sat_image")
     return(l8_img)
 }
 
 
-#' @title Build a table from the given images.
+#' @title Build a table from the images in the given directory.
 #' @author Alber Sanchez, \email{alber.ipia@@inpe.br}
 #' @description Build a table from the given images.
 #'
-#' @param img_path A charater. Paths to MOD13Q1 images.
+#' @param in_dir   A charater. Path to a directory with images.
 #' @param pattern  A length-one character. Pattern used to filter the files.
 #' @param from     A length-one character. The start date.
 #' @param to       A length-one character. The end date.
@@ -65,11 +150,12 @@ build_landsat_tibble <- function(img_path, pattern = NULL, from = NULL,
 #' the PRODES year. The default is "-08-01"
 #' @return A tibble
 #' @export
-build_modis_tibble <- function(img_path, pattern, from = NULL, to = NULL,
+build_modis_tibble <- function(in_dir, pattern, from = NULL, to = NULL,
                                prodes_year_start = "-08-01") {
-    mod_img <- img_path %>%
+    mod_img <- in_dir %>%
         list.files(pattern = pattern, full.names = TRUE, recursive = TRUE) %>%
-        dplyr::as_tibble() %>% dplyr::rename(file_path = value) %>%
+        dplyr::as_tibble() %>% 
+        dplyr::rename(file_path = value) %>%
         dplyr::mutate(sat_image = basename(file_path)) %>%
         dplyr::select(sat_image, file_path) %>%
         dplyr::mutate(
@@ -84,8 +170,9 @@ build_modis_tibble <- function(img_path, pattern, from = NULL, to = NULL,
         dplyr::arrange(tile, img_date)
 
     if (!all(is.null(from), is.null(to))) {
-        mod_img <- mod_img %>% dplyr::filter(img_date >= lubridate::as_date(from),
-                                             img_date <= lubridate::as_date(to))
+        mod_img <- mod_img %>% 
+            dplyr::filter(img_date >= lubridate::as_date(from),
+                          img_date <= lubridate::as_date(to))
     }
 
     # get the cloud coverage. TODO: Too slow. Find a faster way!
@@ -134,13 +221,15 @@ get_landsat_band <- function(path, band_name = "band_designation") {
 #' @author Alber Sanchez, \email{alber.ipia@@inpe.br}
 #' @description Get the metadata required to call gdal's utilitaries.
 #'
-#' @param img_path     A length-one character. Path to a file.
-#' @return             A list of named elements.
-get_landsat_metadata <- function(img_path) {
-    img_raster <- img_path %>% raster::raster()
-    img_extent <- img_raster %>% raster::extent()
-    #
-    param_band <- img_path %>% get_landsat_band()
+#' @param file_path A length-one character. Path to a file.
+#' @return          A list of named elements.
+get_landsat_metadata <- function(file_path) {
+    img_raster <- file_path %>% 
+        raster::raster()
+    img_extent <- img_raster %>% 
+        raster::extent()
+    param_band <- file_path %>% 
+        get_landsat_band()
     param_crs <- paste0("'", raster::projection(img_raster), "'")
     param_extent_output <- c(img_extent@xmin, img_extent@ymin, img_extent@xmax,
                              img_extent@ymax)
@@ -157,13 +246,18 @@ get_landsat_metadata <- function(img_path) {
         dplyr::pull(fill_value)
     param_data_range_l8 <- SPECS_L8_SR %>%
         dplyr::filter(band_designation == param_band) %>%
-        dplyr::pull(valid_range) %>% unlist()
+        dplyr::pull(valid_range) %>% 
+        unlist()
     param_data_range_mod <- SPECS_MOD13Q1 %>%
         dplyr::filter(l8_sr_designation == param_band) %>%
-        dplyr::pull(valid_range) %>% unlist()
+        dplyr::pull(valid_range) %>% 
+        unlist()
     param_scale_factor <- SPECS_L8_SR %>%
         dplyr::filter(band_designation == param_band) %>%
-        dplyr::pull(scale_factor) %>% unlist() %>% solve() %>% as.vector()
+        dplyr::pull(scale_factor) %>% 
+        unlist() %>% 
+        solve() %>% 
+        as.vector()
 
     return(list(band = param_band, crs = param_crs,
                 extent_output = param_extent_output,
@@ -330,4 +424,25 @@ parse_img_name <- function(file_path){
     }
 }
 
+
+#' @title Get a band from a HDF4 file.
+#' @author Alber Sanchez, \email{alber.ipia@@inpe.br}
+#' @description Read a raster subdataset from a HDF4 EOS file.
+#'
+#' @param file_path A character. Path to a file.
+#' @param band      A character. Band in the file. 
+#' @return          A raster object or a list.
+#' @export
+read_hdf <- function(file_path, band){
+    if (length(file_path) == 1 && length(band) == 1) {
+        if (!file.exists(file_path))
+            return(NA)
+        paste0('HDF4_EOS:EOS_GRID:"',file_path,'":Grid:', band) %>% 
+            rgdal::readGDAL(silent = TRUE) %>% 
+            raster::raster() %>% 
+            return()
+    } else if (length(file_path) > 1 && length(band) == 1){
+        return(lapply(file_path, read_hdf, band = band))
+    }
+}
 

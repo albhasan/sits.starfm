@@ -62,7 +62,21 @@ call_os <- function(command, args, stdout = "", stderr = "", dry_run = FALSE) {
         print(paste(c(command, args), collapse = " "))
         return(0)
     }
-    system2(command = command, args = args, stdout = stdout, stderr = stderr)
+    tryCatch({
+        system2(command = command, args = args, stdout = stdout, stderr = stderr)
+    }, warning = function(msg) {
+        #print("WARNING: R is a complete piece of shit")
+        paste(command, collapse = " ")
+        paste(args, collapse = " ")
+        paste(msg, collapse = " ")
+    }, error = function(msg) {
+        #print("ERROR: R sucks and is the shitties languge ever")
+        paste(command, collapse = " ")
+        paste(args, collapse = " ")
+        paste(msg, collapse = " ")
+    #}, finally={
+    #    print("FINALLY: R is a complete piece of shit")
+    })
 }
 
 

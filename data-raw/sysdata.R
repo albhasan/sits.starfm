@@ -1,8 +1,6 @@
 #!/usr/bin/env Rscript
-# create the data for the package
 
-# Specifications Landsat 8 surface reflectance - Table 7.1 pag 21 LaSRC product guide
-# Short names adapted from "The Spectral Response of the Landsat-8 Operational Land Imager" Table 1, page 10233
+# create the data for the package
 
 library(dplyr)
 library(purrr)
@@ -12,6 +10,201 @@ library(sits.starfm)
 
 setwd("/home/alber/Documents/data/experiments/l8mod-fusion/Rpackage/sits.starfm")
 
+#---- BRICK_IMAGES ----
+# metadata of the images used to build the bricks
+landsat_path <- "/home/alber/landsat8"
+modis_path   <- "/home/alber/MOD13Q1"
+scene_shp    <- "/home/alber/Documents/data/experiments/l8mod-fusion/data/shp/wrs2_descending.shp"
+tile_shp     <- "/home/alber/Documents/data/experiments/l8mod-fusion/data/shp/modis-tiles.shp"
+stopifnot(all(vapply(c(landsat_path, modis_path), dir.exists, logical(1))))
+stopifnot(all(vapply(c(scene_shp, tile_shp), file.exists, logical(1))))
+
+brick_scene  <- c("225063", "226064", "233067")
+brick_from   <- paste0(2013:2016, "-08-01") %>%
+  rep(times = length(brick_scene)) %>%
+  lubridate::date() %>%
+  as.list()
+brick_to     <- paste0(2014:2017, "-07-30") %>%
+  rep(times = length(brick_scene)) %>%
+  lubridate::date() %>%
+  as.list()
+brick_scene  <- brick_scene %>%
+  rep(each = length(2013:2016)) %>%
+  as.list()
+BRICK_IMAGES <- purrr::pmap(list(brick_scene, brick_from, brick_to),
+                            function(scene, from, to){
+                              build_brick_tibble2(landsat_path, modis_path,
+                                                  scene_shp, tile_shp,
+                                                  scenes = scene, from = from,
+                                                  to = to, add_neighbors = FALSE) %>%
+                                dplyr::mutate(year = lubridate::year(img_date)) %>%
+                                return()
+                            }) %>%
+  dplyr::bind_rows() %>%
+  ensurer::ensure_that(nrow(.) > 0, err_desc = "Images not found!") %>%
+  ensurer::ensure_that(nrow(.) == length(unique(.$sat_image)),
+                       err_des = "Some images are duplicated.")
+# Get one file (band 1) of each image.
+tmp_img_path <- BRICK_IMAGES %>%
+    dplyr::select(sat_image, files) %>%
+    tidyr::unnest() %>%
+    dplyr::filter(stringr::str_detect(basename(file_path), "_sr_band1.tif")) %>%
+    dplyr::group_by(sat_image) %>%
+    dplyr::slice(dplyr::n()) %>%
+    dplyr::ungroup() %>%
+    dplyr::mutate(img_extent = purrr::map(file_path, function(x){
+        ext <- x %>%
+            raster::raster() %>%
+            raster::projectExtent(crs = "+proj=longlat +datum=WGS84") %>%
+            raster::extent() %>%
+            attributes()
+        ext[["class"]] <- NULL
+        return(unlist(ext))
+    })) %>%
+    dplyr::select(-file_path)
+BRICK_IMAGES <- BRICK_IMAGES %>%
+    dplyr::left_join(tmp_img_path, by = "sat_image")
+
+BRICK_IMAGES %>%
+    dplyr::select(sat_image, scene, files) %>%
+    tidyr::unnest() %>%
+    dplyr::mutate(
+        scene_sat_image = purrr::map_chr(.$sat_image, function(x){unlist(stringr::str_split(x, "_"))[3]}),
+        scene_file =      purrr::map_chr(.$file_path, function(x){unlist(stringr::str_split(basename(x), "_"))[3]})
+    ) %>%
+    dplyr::mutate(test_res = all.equal(scene, scene_sat_image, scene_file)) %>%
+    dplyr::pull(test_res) %>%
+    ensurer::ensure_that(all(.), err_desc = "Scene missmatch")
+
+#---- BRICK_HLS_IMAGES ----
+fileext <- NULL
+BRICK_HLS_IMAGES <- "/home/alber/Documents/data/experiments/prodes_reproduction/data/raster/harmonized_landsat_sentinel2/data/hls" %>%
+    build_hls_tibble(pattern = "*hdf$") %>%
+    dplyr::sekect(-fileext)
+
+#---- END_MEMBERS_LANDSAT_7 ----
+# values obtained from "Global cross-calibration of Landsat spectral mixture models" - https://www.sciencedirect.com/science/article/pii/S0034425717300500
+# file name Landsat 7 ETM+ Global Endmembers
+c_names <- c("wavelength", "substrate", "vegetation", "dark")
+END_MEMBERS_LANDSAT_7 <- c(0.483000, 0.218413, 0.100880, 0.083704,
+                           0.560000, 0.344440, 0.098638, 0.047546,
+				   0.662000, 0.535987, 0.067241, 0.023937,
+                           0.835000, 0.669174, 0.585458, 0.010864,
+                           1.648000, 0.754645, 0.208614, 0.003250,
+                           2.206000, 0.671638, 0.088058, 0.002208) %>%
+    matrix(ncol = 4, byrow = TRUE, dimnames = list(NULL, c_names)) %>%
+    dplyr::as_tibble() %>% dplyr::mutate(band = c("sr_band1", "sr_band2",
+        "sr_band3", "sr_band4", "sr_band5", "sr_band7")) %>%
+    dplyr::select(band, wavelength, substrate, vegetation, dark)
+
+#---- END_MEMBERS_LANDSAT_8 ----
+# values obtained from "Global cross-calibration of Landsat spectral mixture models" - https://www.sciencedirect.com/science/article/pii/S0034425717300500
+# Landsat 8 OLI Global Endmembers
+END_MEMBERS_LANDSAT_8 <- c(0.482600, 0.217556, 0.107935, 0.085274,
+                           0.561300, 0.336629, 0.101411, 0.048318,
+                           0.654600, 0.542132, 0.066796, 0.026065,
+                           0.864600, 0.698451, 0.639724, 0.010515,
+                           1.609000, 0.836586, 0.219278, 0.002342,
+                           2.201000, 0.741504, 0.102166, 0.001322) %>%
+    matrix(ncol = 4, byrow = TRUE, dimnames = list(NULL, c_names)) %>%
+    dplyr::as_tibble() %>% dplyr::mutate(band = c("sr_band2", "sr_band3",
+        "sr_band4", "sr_band5", "sr_band6", "sr_band7")) %>%
+    dplyr::select(band, wavelength, substrate, vegetation, dark)
+
+#---- SPECS_HLS_L30 ----
+# SKAKUN, S. et al. Harmonized Landsat Sentinel-2 ( HLS ) Product User ’ s Guide. 
+# [s.l: s.n.]. <https://hls.gsfc.nasa.gov/>.
+# Table 9: list of the SDS of the L30 product 
+# (SR = Surface Reflectance, 
+# NBAR = Nadir BRDF-normalized Reflectance, 
+# TOA Refl. = Top of Atmosphere Reflectance, 
+# TOA BT = Top of Atmosphere Brightness temperature)
+SPECS_HLS_L30 <- tibble::tribble(
+    ~SDS_name, ~OLI_band_number, ~Units,        ~Data_type, ~Scale, ~Fill_value, ~Spatial_Resolution, ~Description,
+    "band01",  "1",              "reflectance", "int16",    0.0001, -1000,       30,                  "NBAR",
+    "band02",  "2",              "reflectance", "int16",    0.0001, -1000,       30,                  "NBAR",
+    "band03",  "3",              "reflectance", "int16",    0.0001, -1000,       30,                  "NBAR",
+    "band04",  "4",              "reflectance", "int16",    0.0001, -1000,       30,                  "NBAR",
+    "band05",  "5",              "reflectance", "int16",    0.0001, -1000,       30,                  "NBAR",
+    "band06",  "6",              "reflectance", "int16",    0.0001, -1000,       30,                  "NBAR",
+    "band07",  "7",              "reflectance", "int16",    0.0001, -1000,       30,                  "NBAR",
+    "band09",  "9",              "reflectance", "int16",    0.0001, -1000,       30,                  "TOA Refl.",
+    "band10",  "10",             "degree C",    "int16",    0.01,   -1000,       30,                  "TOA BT",
+    "band11",  "11",             "degree C",    "int16",    0.01,   -1000,       30,                  "TOA BT",
+    "QA",      NA,               NA,            "uint8",    NA,     255,         30,                  "Quality bits"
+)
+
+#---- SPECS_HLS_NOMENCLATURE ----
+# SKAKUN, S. et al. Harmonized Landsat Sentinel-2 ( HLS ) Product User ’ s Guide. 
+# [s.l: s.n.]. <https://hls.gsfc.nasa.gov/>.
+# Table 3: HLS spectral bands nomenclature 
+SPECS_HLS_NOMENCLATURE <- tibble::tribble(
+    ~Band_name,           ~OLI_band_number, ~MSI_band_number, ~HLS_band_code_name_L8, ~HLS_band_code_name_S2, ~short_name,
+    "Coastal Aerosol",    '1',              '1',              'band01',               'B01',                  "aerosol", 
+    "Blue",               '2',              '2',              'band02',               'B02',                  "blue",
+    "Green",              '3',              '3',              'band03',               'B03',                  "green",
+    "Red",                '4',              '4',              'band04',               'B04',                  "red",
+    "Red-Edge 1",         NA,               '5',              NA,                     'B05',                  "rededge1",
+    "Red-Edge 2",         NA,               '6',              NA,                     'B06',                  "rededge2",
+    "Red-Edge 3",         NA,               '7',              NA,                     'B07',                  "rededge3",
+    "NIR Broad",          NA,               '8',              NA,                     'B08',                  "nirbroad",
+    "NIR Narrow",         '5',              '8A',             'band05',               'B08A',                 "nirnarrow",
+    "SWIR 1",             '6',              '11',             'band06',               'B11',                  "swir1",
+    "SWIR 2",             '7',              '12',             'band07',               'B12',                  "swir2",
+    "Water vapor",        NA,               '9',              NA,                     'B09',                  "vapor",
+    "Cirrus",             '9',              '10',            'band09',                'B10',                  "cirrus",
+    "Thermal Infrared 1", '10',             NA,              'band10',                NA,                     "infrared1",
+    "Thermal Infrared 2", '11',             NA,              'band11',                NA,                     "infrared2"
+)
+
+
+#---- SPECS_HLS_QA ----
+# SKAKUN, S. et al. Harmonized Landsat Sentinel-2 ( HLS ) Product User ’ s Guide. 
+# [s.l: s.n.]. <https://hls.gsfc.nasa.gov/>.
+# Table 10: Description of the bits in the one-byte Quality Assessment layer i
+# for the 3 products. Bits are listed from the MSB (bit 7) to the LSB (bit 0)
+SPECS_HLS_QA <- tibble::tribble(
+    ~Bit_number, ~QA_description,           ~Bit_combination, ~mask_value,
+    0,           "Cirrus",                  "1",              1,
+    1,           "Cloud",                   "1",              2,
+    2,           "Adjacent cloud",          "1",              4,
+    3,           "Cloud shadow",            "1",              8,
+    4,           "Snow/ice",                "1",              16,
+    5,           "Water",                   "1",              32,
+    67,          "Aerosol quality low",     "01",             64,
+    67,          "Aerosol quality average", "10",             128,
+    67,          "Aerosol quality high",    "11",             192
+)
+
+#---- SPECS_HLS_S30 ----
+# SKAKUN, S. et al. Harmonized Landsat Sentinel-2 ( HLS ) Product User ’ s Guide. 
+# [s.l: s.n.]. <https://hls.gsfc.nasa.gov/>.
+# Table 8: list of the SDS of the S30 product i
+# (SR = Surface Reflectance, 
+# NBAR = Nadir BRDF-Adjusted Reflectance, 
+# TOA Refl. = Top of Atmosphere Reflectance)
+SPECS_HLS_S30 <- tibble::tribble(
+    ~SDS_name, ~MSI_band_number, ~Units,        ~Data_type, ~Scale, ~Fill_value, ~Spatial_Resolution, ~Description,
+    "B01",     "1",              "reflectance", "int16",    0.0001, -1000,       30,                  "SR",
+    "B02",     "2",              "reflectance", "int16",    0.0001, -1000,       30,                  "NBAR",
+    "B03",     "3",              "reflectance", "int16",    0.0001, -1000,       30,                  "NBAR",
+    "B04",     "4",              "reflectance", "int16",    0.0001, -1000,       30,                  "NBAR",
+    "B05",     "5",              "reflectance", "int16",    0.0001, -1000,       30,                  "SR",
+    "B06",     "6",              "reflectance", "int16",    0.0001, -1000,       30,                  "SR",
+    "B07",     "7",              "reflectance", "int16",    0.0001, -1000,       30,                  "SR",
+    "B08",     "8",              "reflectance", "int16",    0.0001, -1000,       30,                  "NBAR",
+    "B08A",    "8A",             "reflectance", "int16",    0.0001, -1000,       30,                  "NBAR",
+    "B09",     "9",              "reflectance", "int16",    0.0001, -1000,       30,                  "TOA Refl.",
+    "B10",     "10",             "reflectance", "int16",    0.0001, -1000,       30,                  "TOA Refl.",
+    "B11",     "11",             "reflectance", "int16",    0.0001, -1000,       30,                  "NBAR",
+    "B12",     "12",             "reflectance", "int16",    0.0001, -1000,       30,                  "NBAR",
+    "QA",      NA,               NA,            "uint8",    NA,     255,         30,                  "Quality bits"
+)
+
+#---- SPECS_L8_SR ----
+# Adapted from:
+# U.S. GEOLOGICAL SURVERY. Landsat8 Surface Reflectance code (LaSRC) Version 4.3 PRODUCT: Product Guide. n. March, p. 40, 2018. 
+# Table 7-1 Surface Reflectance Specifications
 SPECS_L8_SR <- tibble::tibble(
     band_designation = c("sr_band1", "sr_band2", "sr_band3", "sr_band4",
                          "sr_band5", "sr_band6", "sr_band7", "pixel_qa",
@@ -41,6 +234,7 @@ SPECS_L8_SR <- tibble::tibble(
                     "Saturation")
 )
 
+#---- SPECS_MOD13Q1 ----
 # Spefications MOD13Q1 V6 -
 # https://lpdaac.usgs.gov/dataset_discovery/modis/modis_products_table/mod13q1_v006
 SPECS_MOD13Q1 <- tibble::tibble(
@@ -88,102 +282,17 @@ SPECS_MOD13Q1 <- tibble::tibble(
     l8_sr_designation = c(NA, NA, NA, "sr_band4", "sr_band5", "sr_band2",
                           "sr_band7", NA, NA, NA, NA, NA))
 
-c_names <- c("wavelength", "substrate", "vegetation", "dark")
-
-# values obtained from "Global cross-calibration of Landsat spectral mixture models" - https://www.sciencedirect.com/science/article/pii/S0034425717300500
-# file name Landsat 7 ETM+ Global Endmembers
-END_MEMBERS_LANDSAT_7 <- c(0.483000, 0.218413, 0.100880, 0.083704,
-                           0.560000, 0.344440, 0.098638, 0.047546,
-                           0.662000, 0.535987, 0.067241, 0.023937,
-                           0.835000, 0.669174, 0.585458, 0.010864,
-                           1.648000, 0.754645, 0.208614, 0.003250,
-                           2.206000, 0.671638, 0.088058, 0.002208) %>%
-    matrix(ncol = 4, byrow = TRUE, dimnames = list(NULL, c_names)) %>%
-    dplyr::as_tibble() %>% dplyr::mutate(band = c("sr_band1", "sr_band2",
-        "sr_band3", "sr_band4", "sr_band5", "sr_band7")) %>%
-    dplyr::select(band, wavelength, substrate, vegetation, dark)
-
-# values obtained from "Global cross-calibration of Landsat spectral mixture models" - https://www.sciencedirect.com/science/article/pii/S0034425717300500
-# Landsat 8 OLI Global Endmembers
-END_MEMBERS_LANDSAT_8 <- c(0.482600, 0.217556, 0.107935, 0.085274,
-                           0.561300, 0.336629, 0.101411, 0.048318,
-                           0.654600, 0.542132, 0.066796, 0.026065,
-                           0.864600, 0.698451, 0.639724, 0.010515,
-                           1.609000, 0.836586, 0.219278, 0.002342,
-                           2.201000, 0.741504, 0.102166, 0.001322) %>%
-    matrix(ncol = 4, byrow = TRUE, dimnames = list(NULL, c_names)) %>%
-    dplyr::as_tibble() %>% dplyr::mutate(band = c("sr_band2", "sr_band3",
-        "sr_band4", "sr_band5", "sr_band6", "sr_band7")) %>%
-    dplyr::select(band, wavelength, substrate, vegetation, dark)
-
-
-usethis::use_data(END_MEMBERS_LANDSAT_7, END_MEMBERS_LANDSAT_8, SPECS_L8_SR,
-                  SPECS_MOD13Q1, internal = TRUE, overwrite = TRUE)
-
-
-# metadata of the images used to build the bricks
-landsat_path <- "/home/alber/landsat8"
-modis_path   <- "/home/alber/MOD13Q1"
-scene_shp    <- "/home/alber/Documents/data/experiments/l8mod-fusion/data/shp/wrs2_descending.shp"
-tile_shp     <- "/home/alber/Documents/data/experiments/l8mod-fusion/data/shp/modis-tiles.shp"
-stopifnot(all(vapply(c(landsat_path, modis_path), dir.exists, logical(1))))
-stopifnot(all(vapply(c(scene_shp, tile_shp), file.exists, logical(1))))
-brick_scene  <- c("225063", "226064", "233067")
-brick_from   <- paste0(2013:2016, "-08-01") %>% rep(times = length(brick_scene)) %>% lubridate::date() %>% as.list()
-brick_to     <- paste0(2014:2017, "-07-30") %>% rep(times = length(brick_scene)) %>% lubridate::date() %>% as.list()
-brick_scene  <- brick_scene %>% rep(each = length(2013:2016)) %>% as.list()
-BRICK_IMAGES <- purrr::pmap(list(brick_scene, brick_from, brick_to), function(scene, from, to){
-    build_brick_tibble2(landsat_path, modis_path, scene_shp, tile_shp,
-                                     scenes = scene, from = from,to = to,
-                                     add_neighbors = FALSE) %>%
-        dplyr::mutate(year = lubridate::year(img_date)) %>%
-        return()
-}) %>% dplyr::bind_rows() %>% ensurer::ensure_that(nrow(.) > 0, err_desc = "Images not found!")
-# add raster extent
-tmp_img_path <- BRICK_IMAGES %>%
-    dplyr::select(sat_image, files) %>%
-    tidyr::unnest() %>%
-    dplyr::group_by(sat_image) %>%
-    dplyr::slice(dplyr::n()) %>%
-    dplyr::ungroup() %>%
-    dplyr::pull(file_path)
-BRICK_IMAGES$img_extent <- lapply(tmp_img_path, function(x){
-    ext <- x %>%
-        raster::raster() %>%
-        raster::projectExtent(crs = "+proj=longlat +datum=WGS84") %>% 
-        raster::extent() %>%
-        attributes()
-    ext[["class"]] <- NULL
-    return(unlist(ext))
-})
-BRICK_IMAGES %>% 
-    dplyr::select(sat_image, scene, files) %>% 
-    tidyr::unnest() %>% 
-    dplyr::mutate(
-        scene_sat_image = purrr::map_chr(.$sat_image, function(x){unlist(stringr::str_split(x, "_"))[3]}),
-        scene_file =      purrr::map_chr(.$file_path, function(x){unlist(stringr::str_split(basename(x), "_"))[3]})
-    ) %>%
-    dplyr::mutate(test_res = all.equal(scene, scene_sat_image, scene_file)) %>% 
-    dplyr::pull(test_res) %>% 
-    ensurer::ensure_that(all(.), err_desc = "Scene missmatch")
-decimal_places = 4
-
-# TODO : compare the extent coords to ensure a one-to-one match between scenes and extents
-BRICK_IMAGES %>%
-    dplyr::pull(img_extent) %>%
-    as.data.frame(stringsAsFactors = FALSE) %>%
-    t() %>%
-    as.data.frame(stringsAsFactors = FALSE, row.names = "") %>%
-    dplyr::bind_cols(BRICK_IMAGES) %>%
-    dplyr::select(sat_image, scene, xmin, xmax, ymin, ymax) %>%
-    dplyr::group_by(scene) %>%
-    dplyr::select(scene, xmin, xmax, ymin, ymax) %>%
-    dplyr::mutate(xmin = round(xmin, decimal_places),
-                  xmax = round(xmax, decimal_places),
-                  ymin = round(ymin, decimal_places),
-                  ymax = round(ymax, decimal_places)) %>%
-    dplyr::distinct() %>%
-    dplyr::ungroup() # NOTE: each image has its own extent, so, this code isn't helping!!!
-
-usethis::use_data(BRICK_IMAGES, internal = FALSE, overwrite = TRUE)
+#--- Save ----
+usethis::use_data(
+    BRICK_HLS_IMAGES, 
+    BRICK_IMAGES, 
+    END_MEMBERS_LANDSAT_7, 
+    END_MEMBERS_LANDSAT_8, 
+    SPECS_HLS_L30, 
+    SPECS_HLS_NOMENCLATURE,
+    SPECS_HLS_QA,
+    SPECS_HLS_S30, 
+    SPECS_L8_SR, 
+    SPECS_MOD13Q1, 
+    internal = TRUE, overwrite = TRUE)
 

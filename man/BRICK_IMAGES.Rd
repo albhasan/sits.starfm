@@ -3,7 +3,7 @@
 \docType{data}
 \name{BRICK_IMAGES}
 \alias{BRICK_IMAGES}
-\title{Satellite images used to build the SITS briks described in the vignettes}
+\title{Landsat images used to build the SITS bricks described in the vignettes}
 \format{A tibble with 266 rows and 10 variables:
 \describe{
   \item{sat_image}{name of the image}
@@ -24,7 +24,7 @@
 BRICK_IMAGES
 }
 \description{
-A dataset with the characteristics of 266 Landsat 8 images. These images were
+A dataset with the characteristics of 266 Landsat 8 images. These images 
 represent the Earth's Surface Reflectance and belong to the Collection 1. The
 images were processed and downloaded from February to August of 2017.
 }

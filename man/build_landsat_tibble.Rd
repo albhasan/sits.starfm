@@ -2,13 +2,13 @@
 % Please edit documentation in R/images.R
 \name{build_landsat_tibble}
 \alias{build_landsat_tibble}
-\title{Build a table from the given images.}
+\title{Build a table from the images in the given directory.}
 \usage{
-build_landsat_tibble(img_path, pattern = NULL, from = NULL,
-  to = NULL, prodes_year_start = "-08-01")
+build_landsat_tibble(in_dir, pattern = NULL, from = NULL, to = NULL,
+  prodes_year_start = "-08-01")
 }
 \arguments{
-\item{img_path}{A charater. Path to Landsat 8 images.}
+\item{in_dir}{A charater. Path to a directory with images.}
 
 \item{pattern}{A length-one character. Pattern used to filter the files.}
 

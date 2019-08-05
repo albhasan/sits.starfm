@@ -9,7 +9,8 @@ path_to_bricks <- c(
     l8mod_interp  = file.path(base_path, "data", "raster", "brick_interp"),
     l8mod_starfm  = file.path(base_path, "data", "raster", "brick_starfm"),
     l8_simple     = file.path(base_path, "data", "raster", "brick_simple"),
-    l8_mask_cloud = file.path(base_path, "data", "raster", "brick_mask_cloud")
+    l8_mask_cloud = file.path(base_path, "data", "raster", "brick_mask_cloud"),
+    hls_raw       = file.path(base_path, "data", "raster", "brick_hls_raw")
 )
 
 no_dirs <- function(){
@@ -26,6 +27,7 @@ test_that("Interpolated bricks", {
     path_to_bricks["l8mod_interp"] %>% list.files(pattern = "*tif$") %>%
         length() %>% testthat::expect_gt(., 0)
 })
+
 
 
 # test_that("str_length is number of characters", {
