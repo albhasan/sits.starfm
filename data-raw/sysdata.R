@@ -80,7 +80,7 @@ BRICK_IMAGES %>%
 fileext <- NULL
 BRICK_HLS_IMAGES <- "/home/alber/Documents/data/experiments/prodes_reproduction/data/raster/harmonized_landsat_sentinel2/data/hls" %>%
     build_hls_tibble(pattern = "*hdf$") %>%
-    dplyr::sekect(-fileext)
+    dplyr::select(-fileext)
 
 #---- END_MEMBERS_LANDSAT_7 ----
 # values obtained from "Global cross-calibration of Landsat spectral mixture models" - https://www.sciencedirect.com/science/article/pii/S0034425717300500
@@ -148,7 +148,7 @@ SPECS_HLS_NOMENCLATURE <- tibble::tribble(
     "Red-Edge 2",         NA,               '6',              NA,                     'B06',                  "rededge2",
     "Red-Edge 3",         NA,               '7',              NA,                     'B07',                  "rededge3",
     "NIR Broad",          NA,               '8',              NA,                     'B08',                  "nirbroad",
-    "NIR Narrow",         '5',              '8A',             'band05',               'B08A',                 "nirnarrow",
+    "NIR Narrow",         '5',              '8A',             'band05',               'B8A',                 "nirnarrow",
     "SWIR 1",             '6',              '11',             'band06',               'B11',                  "swir1",
     "SWIR 2",             '7',              '12',             'band07',               'B12',                  "swir2",
     "Water vapor",        NA,               '9',              NA,                     'B09',                  "vapor",
@@ -193,7 +193,7 @@ SPECS_HLS_S30 <- tibble::tribble(
     "B06",     "6",              "reflectance", "int16",    0.0001, -1000,       30,                  "SR",
     "B07",     "7",              "reflectance", "int16",    0.0001, -1000,       30,                  "SR",
     "B08",     "8",              "reflectance", "int16",    0.0001, -1000,       30,                  "NBAR",
-    "B08A",    "8A",             "reflectance", "int16",    0.0001, -1000,       30,                  "NBAR",
+    "B8A",     "8A",             "reflectance", "int16",    0.0001, -1000,       30,                  "NBAR",
     "B09",     "9",              "reflectance", "int16",    0.0001, -1000,       30,                  "TOA Refl.",
     "B10",     "10",             "reflectance", "int16",    0.0001, -1000,       30,                  "TOA Refl.",
     "B11",     "11",             "reflectance", "int16",    0.0001, -1000,       30,                  "NBAR",

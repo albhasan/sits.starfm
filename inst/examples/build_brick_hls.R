@@ -30,18 +30,24 @@ brick_tile    <- opt$tile
 brick_product <- opt$product
 brick_from    <- opt$from 
 brick_to      <- opt$to
-brick_bands   <- c(paste0("band0", c(1:7, 9)), paste0("band", 10:11))
 brick_n_img   <- 23
 out_dir       <- "/home/alber/Documents/data/experiments/prodes_reproduction/data/raster/brick_hls_raw"
-
 
 # TODO: remove
 library(devtools)
 devtools::load_all()
 
-build_brick_hls_raw(in_dir, brick_tile, brick_product, brick_from, brick_to, 
-                           brick_bands, brick_n_img, 
-                           out_dir)
+if (brick_product == "L30"){
+    brick_bands <- c(paste0("band0", c(1:7, 9)), paste0("band", 10:11))
+} else if (brick_product == "S30") {
+    brick_bands <- c(paste0("B0", 1:8), "B8A", "B09", paste0("B", 10:12))
+} else{
+    stop("Unknown product.")
+}
+brick_summary <- build_brick_hls_raw(in_dir, brick_tile, brick_product, brick_from, brick_to, 
+                                     brick_bands, brick_n_img, 
+                                     out_dir)
 
+saveRDS(brick_summary, file = file.path(getwd(), "inst", "examples", paste(brick_tile, brick_product,brick_from, "summary.rds", sep = '_')))
 print("Finished!")
 

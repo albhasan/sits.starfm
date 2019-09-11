@@ -458,6 +458,7 @@ gdal_translate <- function(input_files,
 #' @param doo          A character. e.g. c('NAME1=VALUE1', 'NAME2=VALUE2')
 #' @param dry_run      A length-one logical. Do not run, just print the sytem call.
 #' @return out_filename A length-one character.
+#' @export
 gdal_warp <- function(input_files,
                       out_filename = tempfile(pattern = "gdal_warp_out_", fileext = ".tif"),
                       s_srs = NULL,

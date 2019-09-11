@@ -86,13 +86,13 @@ build_brick_hls_raw <- function(in_dir, brick_tile, brick_product, brick_from,
     # 
     stopifnot(brick_product %in% c("L30", "S30"))
     if (brick_product == "L30") {
-        img_specs <- SPECS_HLS_L30 %>%
-            dplyr::left_join(dplyr::select(SPECS_HLS_NOMENCLATURE, short_name, 
+        img_specs <- sits.starfm:::SPECS_HLS_L30 %>%
+            dplyr::left_join(dplyr::select(sits.starfm:::SPECS_HLS_NOMENCLATURE, short_name, 
                                            SDS_name = .data$HLS_band_code_name_L8), 
                              by = "SDS_name")
     } else if (brick_product == "S30") {
-        img_specs <- SPECS_HLS_S30 %>%
-            dplyr::left_join(dplyr::select(SPECS_HLS_NOMENCLATURE, short_name,
+        img_specs <- sits.starfm:::SPECS_HLS_S30 %>%
+            dplyr::left_join(dplyr::select(sits.starfm:::SPECS_HLS_NOMENCLATURE, short_name,
                                            SDS_name = .data$HLS_band_code_name_S2), 
                              by = "SDS_name")
     }
@@ -104,7 +104,7 @@ build_brick_hls_raw <- function(in_dir, brick_tile, brick_product, brick_from,
 
     # Get image's metadata.
     img_tb <- in_dir %>%
-        build_hls_tibble(pattern = "*hdf$") %>%
+        sits.starfm::build_hls_tibble(pattern = "*hdf$") %>%
         ensurer::ensure_that(nrow(.) > 0, 
                             err_desc = sprintf("No HLS images found at: %s", 
                                  in_dir)) %>%
@@ -119,11 +119,14 @@ build_brick_hls_raw <- function(in_dir, brick_tile, brick_product, brick_from,
                              err_desc = "No image match the input parameters.")
 
     # Ensure we aren't building a brick of corner images.
+    img_period <- 10
+    if (brick_product == "L30")
+        img_period <- 16
     time_tb <- img_tb %>%
         dplyr::pull(img_date) %>%
         min()
-    if (abs(1 - brick_n_img/nrow(img_tb)) > 0.25) {
-        warning("Ignoring corner images.")
+    if (brick_product == "L30" && abs(1 - brick_n_img/nrow(img_tb)) > 0.25) {
+        warning("Ignoring Landsat corner images.")
         time_tb <- img_tb %>%
             dplyr::slice(1:2) %>%
             dplyr::mutate(g_path = paste0('HDF4_EOS:EOS_GRID:"', file_path,  
@@ -133,13 +136,26 @@ build_brick_hls_raw <- function(in_dir, brick_tile, brick_product, brick_from,
             dplyr::pull(img_date) 
     }
     time_tb <- time_tb %>%
-        seq(by = 16, length.out = brick_n_img) %>%
+        # seq(by = img_period, length.out = brick_n_img) %>%
+        seq(by = img_period, length.out = brick_n_img * 2) %>%
         tibble::enframe(name = NULL) %>%
         dplyr::rename(img_date = "value") %>%
         dplyr::mutate(expected_date = img_date)
+    holes_in_ts <- img_tb %>% 
+        dplyr::right_join(time_tb, by = "img_date") %>%
+        dplyr::slice(1:brick_n_img) %>%
+        dplyr::filter(is.na(file_path))
+    if (nrow(holes_in_ts) > 0) 
+        warning(sprintf("There are %s missing images for brick %s: %s", nrow(holes_in_ts), 
+                paste(brick_prefix, brick_tile, brick_from, sep = '_'),
+                paste(dplyr::pull(holes_in_ts, expected_date), collapse = ", ")))
+    if (nrow(holes_in_ts) > 3)
+        stop(sprintf("Too many missing images for brick %s.", 
+             paste(brick_prefix, brick_tile, brick_from, sep = '_')))
     img_tb <- img_tb %>% 
         dplyr::left_join(time_tb, by = "img_date") %>%
         tidyr::drop_na(expected_date) %>%
+        dplyr::slice(1:brick_n_img) %>%
         ensurer::ensure_that(length(unique(.$expected_date)) == brick_n_img,
                              err_desc = "Not enough images.")
 
@@ -202,16 +218,6 @@ build_brick_hls_raw <- function(in_dir, brick_tile, brick_product, brick_from,
                     return()
             }, vi_bands = vi_bands))
 
-#    # Build bricks using the spectral mixture model.
-#    mix_brick <- brick_imgs %>% build_spectral_mixture_brick(field_name = "masked",
-#                                                             brick_prefix = brick_prefix,
-#                                                             brick_path = brick_path,
-#                                                             brick_n_img = brick_n_img,
-#                                                             no_data = no_data,
-#                                                             gdal_format = gdal_format,
-#                                                             gdal_options = gdal_options,
-#                                                             tmp_dir = tmp_dir)
-
     # Cloud bricks.
     cloud_imgs <- img_tb %>% 
         # HDF to VRT.
@@ -244,7 +250,8 @@ build_brick_hls_raw <- function(in_dir, brick_tile, brick_product, brick_from,
                     creation_option = "BIGTIFF=YES") %>%
                 return()
         })) 
-        # Pile uo images.
+
+    # Pile up images.
     brick_start_date <- brick_tb %>% 
         dplyr::pull(brick_start_date) %>% 
         min() 
@@ -257,14 +264,8 @@ build_brick_hls_raw <- function(in_dir, brick_tile, brick_product, brick_from,
             gdal_format = "GTiff",
             no_data = out_no_data,
             gdal_options = "BIGTIFF=YES") 
-    #cloud_brick <- brick_imgs %>% dplyr::pull(cloud_mask) %>% pile_files(
-    #    out_fn <- file.path(brick_path, paste(brick_prefix, brick_scene, img_date, "cloud", "STACK_BRICK.tif", sep = '_')),
-    #    gdal_format = gdal_format,
-    #    no_data = no_data,
-    #    gdal_options = gdal_options) %>%
-    #    return()
 
-    return(list(brick_bands = brick_tb, brick_index = brick_vi_tb, brick_cloud = cloud_brick)) #, brick_mixture = mix_brick))
+    return(list(image_tb = img_tb, brick_tb = brick_tb, brick_index_tb = brick_vi_tb, brick_cloud = cloud_brick))
 }
 
 

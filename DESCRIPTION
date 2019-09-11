@@ -1,6 +1,6 @@
 Package: sits.starfm
 Title: Use the StarFM Fusion Model on Landsat 8 Images
-Version: 0.0.0.9027
+Version: 0.0.0.9028
 Authors@R: 
     person(given = "Alber",
            family = "Sanchez",
