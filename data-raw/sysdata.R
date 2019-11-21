@@ -138,23 +138,28 @@ SPECS_HLS_L30 <- tibble::tribble(
 # SKAKUN, S. et al. Harmonized Landsat Sentinel-2 ( HLS ) Product User ’ s Guide. 
 # [s.l: s.n.]. <https://hls.gsfc.nasa.gov/>.
 # Table 3: HLS spectral bands nomenclature 
+#
+# GRIFFITHS, P.; NENDEL, C.; HOSTERT, P. Intra-annual reflectance composites 
+# from Sentinel-2 and Landsat for national-scale crop and land cover mapping. 
+# Remote Sensing of Environment, v. 220, n. October 2017, p. 135–151, jan. 2019. 
+# Table 1: Specifications of the Sentinel-2 and Landsat-8 missions
 SPECS_HLS_NOMENCLATURE <- tibble::tribble(
-    ~Band_name,           ~OLI_band_number, ~MSI_band_number, ~HLS_band_code_name_L8, ~HLS_band_code_name_S2, ~short_name,
-    "Coastal Aerosol",    '1',              '1',              'band01',               'B01',                  "aerosol", 
-    "Blue",               '2',              '2',              'band02',               'B02',                  "blue",
-    "Green",              '3',              '3',              'band03',               'B03',                  "green",
-    "Red",                '4',              '4',              'band04',               'B04',                  "red",
-    "Red-Edge 1",         NA,               '5',              NA,                     'B05',                  "rededge1",
-    "Red-Edge 2",         NA,               '6',              NA,                     'B06',                  "rededge2",
-    "Red-Edge 3",         NA,               '7',              NA,                     'B07',                  "rededge3",
-    "NIR Broad",          NA,               '8',              NA,                     'B08',                  "nirbroad",
-    "NIR Narrow",         '5',              '8A',             'band05',               'B8A',                 "nirnarrow",
-    "SWIR 1",             '6',              '11',             'band06',               'B11',                  "swir1",
-    "SWIR 2",             '7',              '12',             'band07',               'B12',                  "swir2",
-    "Water vapor",        NA,               '9',              NA,                     'B09',                  "vapor",
-    "Cirrus",             '9',              '10',            'band09',                'B10',                  "cirrus",
-    "Thermal Infrared 1", '10',             NA,              'band10',                NA,                     "infrared1",
-    "Thermal Infrared 2", '11',             NA,              'band11',                NA,                     "infrared2"
+    ~Band_name,           ~OLI_band_number, ~MSI_band_number, ~HLS_band_code_name_L8, ~HLS_band_code_name_S2, ~short_name, ~center_wavelength_msi, ~center_wavelength_oli,
+    "Coastal Aerosol",    '1',              '1',              'band01',               'B01',                  "aerosol",                     443,                     443,
+    "Blue",               '2',              '2',              'band02',               'B02',                  "blue",                        490,                     482,
+    "Green",              '3',              '3',              'band03',               'B03',                  "green",                       560,                     561,
+    "Red",                '4',              '4',              'band04',               'B04',                  "red",                         665,                     655,
+    "Red-Edge 1",         NA,               '5',              NA,                     'B05',                  "rededge1",                    705,                      NA,
+    "Red-Edge 2",         NA,               '6',              NA,                     'B06',                  "rededge2",                    740,                      NA,
+    "Red-Edge 3",         NA,               '7',              NA,                     'B07',                  "rededge3",                    783,                      NA,
+    "NIR Broad",          NA,               '8',              NA,                     'B08',                  "nirbroad",                    842,                      NA,
+    "NIR Narrow",         '5',              '8A',             'band05',               'B8A',                  "nirnarrow",                   865,                     865,
+    "SWIR 1",             '6',              '11',             'band06',               'B11',                  "swir1",                      1610,                    1609,  
+    "SWIR 2",             '7',              '12',             'band07',               'B12',                  "swir2",                      2190,                    2201,
+    "water vapor",        na,               '9',              na,                     'b09',                  "vapor",                       945,                      NA,
+    "Cirrus",             '9',              '10',            'band09',                'B10',                  "cirrus",                     1375,                    1373,
+    "Thermal Infrared 1", '10',             NA,              'band10',                NA,                     "infrared1",                    NA,                   10900,
+    "Thermal Infrared 2", '11',             NA,              'band11',                NA,                     "infrared2",                    NA,                   12000            
 )
 
 
