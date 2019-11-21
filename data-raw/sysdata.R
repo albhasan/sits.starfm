@@ -8,8 +8,6 @@ library(lubridate)
 library(ensurer)
 library(sits.starfm)
 
-setwd("/home/alber/Documents/data/experiments/l8mod-fusion/Rpackage/sits.starfm")
-
 #---- BRICK_IMAGES ----
 # metadata of the images used to build the bricks
 landsat_path <- "/home/alber/landsat8"
@@ -36,7 +34,8 @@ BRICK_IMAGES <- purrr::pmap(list(brick_scene, brick_from, brick_to),
                               build_brick_tibble2(landsat_path, modis_path,
                                                   scene_shp, tile_shp,
                                                   scenes = scene, from = from,
-                                                  to = to, add_neighbors = FALSE) %>%
+                                                  to = to, 
+                                                  add_neighbors = FALSE) %>%
                                 dplyr::mutate(year = lubridate::year(img_date)) %>%
                                 return()
                             }) %>%
@@ -88,7 +87,7 @@ BRICK_HLS_IMAGES <- "/home/alber/Documents/data/experiments/prodes_reproduction/
 c_names <- c("wavelength", "substrate", "vegetation", "dark")
 END_MEMBERS_LANDSAT_7 <- c(0.483000, 0.218413, 0.100880, 0.083704,
                            0.560000, 0.344440, 0.098638, 0.047546,
-				   0.662000, 0.535987, 0.067241, 0.023937,
+		           0.662000, 0.535987, 0.067241, 0.023937,
                            0.835000, 0.669174, 0.585458, 0.010864,
                            1.648000, 0.754645, 0.208614, 0.003250,
                            2.206000, 0.671638, 0.088058, 0.002208) %>%
@@ -156,7 +155,7 @@ SPECS_HLS_NOMENCLATURE <- tibble::tribble(
     "NIR Narrow",         '5',              '8A',             'band05',               'B8A',                  "nirnarrow",                   865,                     865,
     "SWIR 1",             '6',              '11',             'band06',               'B11',                  "swir1",                      1610,                    1609,  
     "SWIR 2",             '7',              '12',             'band07',               'B12',                  "swir2",                      2190,                    2201,
-    "water vapor",        na,               '9',              na,                     'b09',                  "vapor",                       945,                      NA,
+    "water vapor",        NA,               '9',              NA,                     'b09',                  "vapor",                       945,                      NA,
     "Cirrus",             '9',              '10',            'band09',                'B10',                  "cirrus",                     1375,                    1373,
     "Thermal Infrared 1", '10',             NA,              'band10',                NA,                     "infrared1",                    NA,                   10900,
     "Thermal Infrared 2", '11',             NA,              'band11',                NA,                     "infrared2",                    NA,                   12000            
