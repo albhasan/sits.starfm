@@ -12,7 +12,7 @@ suppressMessages(suppressPackageStartupMessages(library(devtools )))
 setwd("/home/alber/Documents/data/experiments/l8mod-fusion/Rpackage/sits.starfm")
 devtools::load_all()
 
-brick_scene <- c("225063", "226064", "233067") 
+brick_scene <- c("225063", "226064", "233067")
 brick_from  <- "2014-08-01"
 brick_to    <- "2017-07-30"
 brick_pyear <- 2014:2017
@@ -35,7 +35,7 @@ l8_img <- build_landsat_tibble(landsat_path,
         from = brick_from, to = brick_to) %>%
         dplyr::filter(tile %in% brick_scene, prodes_year %in% brick_pyear) %>%
     dplyr::mutate(
-        mask_area = purrr::map_chr(.$files, 
+        mask_area = purrr::map_chr(.$files,
             function(fs){
                 fs %>%
                     dplyr::filter(stringr::str_detect(file_path, pattern = "sr_band4")) %>%
@@ -54,14 +54,13 @@ merge_masks <- function(file_path, out_file){
         if (i == 1) {
             next()
         }else if (i == length(file_path)) {
-            fname <- out_file 
+            fname <- out_file
         }
-        gdal_calc(input_files = c(file_path[i-1], file_path[i]),
-                  out_filename = fname,
-                  expression = "(numpy.where(numpy.logical_or(A == 0, B == 0), 0, 1)).astype(int16)",
-                  dstnodata = 0,
-                  data_type = "Int16",
-                  dry_run = FALSE)
+        gdalcmdline::gdal_calc(input_files = c(file_path[i-1], file_path[i]),
+                               out_filename = fname,
+                               expression = "(numpy.where(numpy.logical_or(A == 0, B == 0), 0, 1)).astype(int16)",
+                               dstnodata = 0, data_type = "Int16",
+                               dry_run = FALSE)
     }
     return(fname)
 }
@@ -73,7 +72,7 @@ res <- l8_img %>%
     dplyr::group_by(tile, prodes_year) %>%
     dplyr::filter(row_number() == 1) %>%
     dplyr::ungroup() %>%
-    dplyr::select(-c(sat_image, files, neigh, cloud_cov)) %>% 
+    dplyr::select(-c(sat_image, files, neigh, cloud_cov)) %>%
     dplyr::mutate(mask_corner = file.path(out_dir, paste0("LC08_CORNERMASK_", tile, "_", prodes_year, ".tif")))
 for (i in 1:nrow(res)){
     if(i > 0){
@@ -81,7 +80,7 @@ for (i in 1:nrow(res)){
         file.copy(res$mask_area[[i]], res$mask_corner[[i]])
     }
 }
-#  - - 
+#  - -
 
 
 

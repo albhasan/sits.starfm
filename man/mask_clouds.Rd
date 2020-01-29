@@ -4,8 +4,7 @@
 \alias{mask_clouds}
 \title{Replace the clouds with a value.}
 \usage{
-mask_clouds(img, bands, replacement_value, out_dir, param,
-  tmp_dir = tempdir())
+mask_clouds(img, bands, replacement_value, out_dir, param, tmp_dir = tempdir())
 }
 \arguments{
 \item{img}{A one-row tibble with a the fields 'sat_image' and 'files'.}

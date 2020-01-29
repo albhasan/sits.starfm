@@ -4,8 +4,7 @@
 \alias{compute_mixture_model}
 \title{Compute a mixture model.}
 \usage{
-compute_mixture_model(file_paths, out_dir, landsat_sat = "8",
-  no_data = -9999)
+compute_mixture_model(file_paths, out_dir, landsat_sat = "8", no_data = -9999)
 }
 \arguments{
 \item{file_paths}{A character. Paths to files of a Landsat image.}

@@ -4,9 +4,15 @@
 \alias{compute_brick_vi}
 \title{Compute a vegetation-index brick.}
 \usage{
-compute_brick_vi(brick_A, brick_B, vi_exp, vi_filename,
-  gdal_options = c("TILED=YES", "COPY_SRC_OVERVIEWS=YES",
-  "COMPRESS=LZW"), brick_data_type = "Int16", no_data = -9999)
+compute_brick_vi(
+  brick_A,
+  brick_B,
+  vi_exp,
+  vi_filename,
+  gdal_options = c("TILED=YES", "COPY_SRC_OVERVIEWS=YES", "COMPRESS=LZW"),
+  brick_data_type = "Int16",
+  no_data = -9999
+)
 }
 \arguments{
 \item{brick_A}{A length-one character. Path to a brick file.}

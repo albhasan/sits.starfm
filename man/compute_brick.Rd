@@ -4,9 +4,14 @@
 \alias{compute_brick}
 \title{Do a calculation on bricks.}
 \usage{
-compute_brick(in_files, gdal_exp, out_file, out_no_data = -9999,
-  out_data_type = "Int16", gdal_options = c("TILED=YES",
-  "COPY_SRC_OVERVIEWS=YES", "COMPRESS=LZW"))
+compute_brick(
+  in_files,
+  gdal_exp,
+  out_file,
+  out_no_data = -9999,
+  out_data_type = "Int16",
+  gdal_options = c("TILED=YES", "COPY_SRC_OVERVIEWS=YES", "COMPRESS=LZW")
+)
 }
 \arguments{
 \item{in_files}{A character. Paths to brick files.}

@@ -39,8 +39,10 @@ Suggests:
     knitr, 
     methods,
     zoo
+Remotes:
+    albhasan/gdalcmdline
 VignetteBuilder: knitr
-RoxygenNote: 6.1.1
+RoxygenNote: 7.0.2
 Depends: R (>= 3.5)
 URL: http://github.com/albhasan/sits.starfm/
 BugReports: http://github.com/albhasan/sits.starfm/issues

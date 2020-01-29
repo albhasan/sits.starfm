@@ -4,8 +4,14 @@
 \alias{mask_negatives}
 \title{Replace negatives values.}
 \usage{
-mask_negatives(img, bands, replacement_value, out_dir, param,
-  tmp_dir = tempdir())
+mask_negatives(
+  img,
+  bands,
+  replacement_value,
+  out_dir,
+  param,
+  tmp_dir = tempdir()
+)
 }
 \arguments{
 \item{img}{A one-row tibble with a the fields 'sat_image' and 'files'.}

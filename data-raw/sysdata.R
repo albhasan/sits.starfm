@@ -8,6 +8,9 @@ library(lubridate)
 library(ensurer)
 library(sits.starfm)
 
+#setwd("/home/alber/Documents/ghProjects/sits.starfm")
+#devtools::load_all()
+
 #---- BRICK_IMAGES ----
 # metadata of the images used to build the bricks
 landsat_path <- "/home/alber/landsat8"
@@ -31,11 +34,12 @@ brick_scene  <- brick_scene %>%
   as.list()
 BRICK_IMAGES <- purrr::pmap(list(brick_scene, brick_from, brick_to),
                             function(scene, from, to){
-                              build_brick_tibble2(landsat_path, modis_path,
-                                                  scene_shp, tile_shp,
-                                                  scenes = scene, from = from,
-                                                  to = to, 
-                                                  add_neighbors = FALSE) %>%
+                              build_brick_landsat_modis(landsat_path,
+                                                        modis_path, scene_shp,
+                                                        tile_shp,
+                                                        scenes = scene,
+                                                        from = from, to = to,
+                                                        add_neighbors = FALSE) %>%
                                 dplyr::mutate(year = lubridate::year(img_date)) %>%
                                 return()
                             }) %>%
@@ -111,12 +115,12 @@ END_MEMBERS_LANDSAT_8 <- c(0.482600, 0.217556, 0.107935, 0.085274,
     dplyr::select(band, wavelength, substrate, vegetation, dark)
 
 #---- SPECS_HLS_L30 ----
-# SKAKUN, S. et al. Harmonized Landsat Sentinel-2 ( HLS ) Product User ’ s Guide. 
+# SKAKUN, S. et al. Harmonized Landsat Sentinel-2 ( HLS ) Product User ’ s Guide.
 # [s.l: s.n.]. <https://hls.gsfc.nasa.gov/>.
-# Table 9: list of the SDS of the L30 product 
-# (SR = Surface Reflectance, 
-# NBAR = Nadir BRDF-normalized Reflectance, 
-# TOA Refl. = Top of Atmosphere Reflectance, 
+# Table 9: list of the SDS of the L30 product
+# (SR = Surface Reflectance,
+# NBAR = Nadir BRDF-normalized Reflectance,
+# TOA Refl. = Top of Atmosphere Reflectance,
 # TOA BT = Top of Atmosphere Brightness temperature)
 SPECS_HLS_L30 <- tibble::tribble(
     ~SDS_name, ~OLI_band_number, ~Units,        ~Data_type, ~Scale, ~Fill_value, ~Spatial_Resolution, ~Description,
@@ -134,13 +138,13 @@ SPECS_HLS_L30 <- tibble::tribble(
 )
 
 #---- SPECS_HLS_NOMENCLATURE ----
-# SKAKUN, S. et al. Harmonized Landsat Sentinel-2 ( HLS ) Product User ’ s Guide. 
+# SKAKUN, S. et al. Harmonized Landsat Sentinel-2 ( HLS ) Product User ’ s Guide.
 # [s.l: s.n.]. <https://hls.gsfc.nasa.gov/>.
-# Table 3: HLS spectral bands nomenclature 
+# Table 3: HLS spectral bands nomenclature
 #
-# GRIFFITHS, P.; NENDEL, C.; HOSTERT, P. Intra-annual reflectance composites 
-# from Sentinel-2 and Landsat for national-scale crop and land cover mapping. 
-# Remote Sensing of Environment, v. 220, n. October 2017, p. 135–151, jan. 2019. 
+# GRIFFITHS, P.; NENDEL, C.; HOSTERT, P. Intra-annual reflectance composites
+# from Sentinel-2 and Landsat for national-scale crop and land cover mapping.
+# Remote Sensing of Environment, v. 220, n. October 2017, p. 135–151, jan. 2019.
 # Table 1: Specifications of the Sentinel-2 and Landsat-8 missions
 SPECS_HLS_NOMENCLATURE <- tibble::tribble(
     ~Band_name,           ~OLI_band_number, ~MSI_band_number, ~HLS_band_code_name_L8, ~HLS_band_code_name_S2, ~short_name, ~center_wavelength_msi, ~center_wavelength_oli,
@@ -153,17 +157,17 @@ SPECS_HLS_NOMENCLATURE <- tibble::tribble(
     "Red-Edge 3",         NA,               '7',              NA,                     'B07',                  "rededge3",                    783,                      NA,
     "NIR Broad",          NA,               '8',              NA,                     'B08',                  "nirbroad",                    842,                      NA,
     "NIR Narrow",         '5',              '8A',             'band05',               'B8A',                  "nirnarrow",                   865,                     865,
-    "SWIR 1",             '6',              '11',             'band06',               'B11',                  "swir1",                      1610,                    1609,  
+    "SWIR 1",             '6',              '11',             'band06',               'B11',                  "swir1",                      1610,                    1609,
     "SWIR 2",             '7',              '12',             'band07',               'B12',                  "swir2",                      2190,                    2201,
     "water vapor",        NA,               '9',              NA,                     'b09',                  "vapor",                       945,                      NA,
     "Cirrus",             '9',              '10',            'band09',                'B10',                  "cirrus",                     1375,                    1373,
     "Thermal Infrared 1", '10',             NA,              'band10',                NA,                     "infrared1",                    NA,                   10900,
-    "Thermal Infrared 2", '11',             NA,              'band11',                NA,                     "infrared2",                    NA,                   12000            
+    "Thermal Infrared 2", '11',             NA,              'band11',                NA,                     "infrared2",                    NA,                   12000
 )
 
 
 #---- SPECS_HLS_QA ----
-# SKAKUN, S. et al. Harmonized Landsat Sentinel-2 ( HLS ) Product User ’ s Guide. 
+# SKAKUN, S. et al. Harmonized Landsat Sentinel-2 ( HLS ) Product User ’ s Guide.
 # [s.l: s.n.]. <https://hls.gsfc.nasa.gov/>.
 # Table 10: Description of the bits in the one-byte Quality Assessment layer i
 # for the 3 products. Bits are listed from the MSB (bit 7) to the LSB (bit 0)
@@ -181,11 +185,11 @@ SPECS_HLS_QA <- tibble::tribble(
 )
 
 #---- SPECS_HLS_S30 ----
-# SKAKUN, S. et al. Harmonized Landsat Sentinel-2 ( HLS ) Product User ’ s Guide. 
+# SKAKUN, S. et al. Harmonized Landsat Sentinel-2 ( HLS ) Product User ’ s Guide.
 # [s.l: s.n.]. <https://hls.gsfc.nasa.gov/>.
 # Table 8: list of the SDS of the S30 product i
-# (SR = Surface Reflectance, 
-# NBAR = Nadir BRDF-Adjusted Reflectance, 
+# (SR = Surface Reflectance,
+# NBAR = Nadir BRDF-Adjusted Reflectance,
 # TOA Refl. = Top of Atmosphere Reflectance)
 SPECS_HLS_S30 <- tibble::tribble(
     ~SDS_name, ~MSI_band_number, ~Units,        ~Data_type, ~Scale, ~Fill_value, ~Spatial_Resolution, ~Description,
@@ -207,7 +211,7 @@ SPECS_HLS_S30 <- tibble::tribble(
 
 #---- SPECS_L8_SR ----
 # Adapted from:
-# U.S. GEOLOGICAL SURVERY. Landsat8 Surface Reflectance code (LaSRC) Version 4.3 PRODUCT: Product Guide. n. March, p. 40, 2018. 
+# U.S. GEOLOGICAL SURVERY. Landsat8 Surface Reflectance code (LaSRC) Version 4.3 PRODUCT: Product Guide. n. March, p. 40, 2018.
 # Table 7-1 Surface Reflectance Specifications
 SPECS_L8_SR <- tibble::tibble(
     band_designation = c("sr_band1", "sr_band2", "sr_band3", "sr_band4",
@@ -288,15 +292,15 @@ SPECS_MOD13Q1 <- tibble::tibble(
 
 #--- Save ----
 usethis::use_data(
-    BRICK_HLS_IMAGES, 
-    BRICK_IMAGES, 
-    END_MEMBERS_LANDSAT_7, 
-    END_MEMBERS_LANDSAT_8, 
-    SPECS_HLS_L30, 
+    BRICK_HLS_IMAGES,
+    BRICK_IMAGES,
+    END_MEMBERS_LANDSAT_7,
+    END_MEMBERS_LANDSAT_8,
+    SPECS_HLS_L30,
     SPECS_HLS_NOMENCLATURE,
     SPECS_HLS_QA,
-    SPECS_HLS_S30, 
-    SPECS_L8_SR, 
-    SPECS_MOD13Q1, 
+    SPECS_HLS_S30,
+    SPECS_L8_SR,
+    SPECS_MOD13Q1,
     internal = TRUE, overwrite = TRUE)
 

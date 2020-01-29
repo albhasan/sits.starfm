@@ -4,10 +4,13 @@
 \alias{compute_vi}
 \title{Compute vegetation indexes from bricks.}
 \usage{
-compute_vi(brick_path, brick_pattern = "^brick_.*[.]tif$",
-  vi_index = c("ndvi", "savi"), no_data = -9999,
-  gdal_options = c("TILED=YES", "COPY_SRC_OVERVIEWS=YES",
-  "COMPRESS=LZW"))
+compute_vi(
+  brick_path,
+  brick_pattern = "^brick_.*[.]tif$",
+  vi_index = c("ndvi", "savi"),
+  no_data = -9999,
+  gdal_options = c("TILED=YES", "COPY_SRC_OVERVIEWS=YES", "COMPRESS=LZW")
+)
 }
 \arguments{
 \item{brick_path}{A length-one character. Path to bricks.}

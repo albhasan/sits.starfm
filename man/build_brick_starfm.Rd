@@ -4,11 +4,23 @@
 \alias{build_brick_starfm}
 \title{Build a SITS brick using a fusion model (StarFM) to fill in the cloud gaps.}
 \usage{
-build_brick_starfm(landsat_path, modis_path, scene_shp, tile_shp,
-  brick_scene, brick_year, brick_bands, brick_path, cloud_threshold,
-  n_best_img = 23, img_per_year = 23, image_step = 16,
-  temp_dir = NULL, no_data = -9999, gdal_options = c("TILED=YES",
-  "COPY_SRC_OVERVIEWS=YES", "COMPRESS=LZW"))
+build_brick_starfm(
+  landsat_path,
+  modis_path,
+  scene_shp,
+  tile_shp,
+  brick_scene,
+  brick_year,
+  brick_bands,
+  brick_path,
+  cloud_threshold,
+  n_best_img = 23,
+  img_per_year = 23,
+  image_step = 16,
+  temp_dir = NULL,
+  no_data = -9999,
+  gdal_options = c("TILED=YES", "COPY_SRC_OVERVIEWS=YES", "COMPRESS=LZW")
+)
 }
 \arguments{
 \item{landsat_path}{A length-one character. Path to a directory of Landsat images.}

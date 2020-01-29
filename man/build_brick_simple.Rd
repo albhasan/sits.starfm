@@ -4,10 +4,23 @@
 \alias{build_brick_simple}
 \title{Build a SITS brick of cloud-masked images.}
 \usage{
-build_brick_simple(landsat_path, modis_path, scene_shp, tile_shp,
-  brick_scene, brick_from, brick_to, brick_bands, brick_prefix, brick_path,
-  brick_n_img, gdal_options = "BIGTIFF=YES", gdal_format = "GTiff",
-  no_data = -9999, tmp_dir = tempdir())
+build_brick_simple(
+  landsat_path,
+  modis_path,
+  scene_shp,
+  tile_shp,
+  brick_scene,
+  brick_from,
+  brick_to,
+  brick_bands,
+  brick_prefix,
+  brick_path,
+  brick_n_img,
+  gdal_options = "BIGTIFF=YES",
+  gdal_format = "GTiff",
+  no_data = -9999,
+  tmp_dir = tempdir()
+)
 }
 \arguments{
 \item{landsat_path}{A length-one character. Path to a directory of Landsat images.}

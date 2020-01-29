@@ -17,10 +17,11 @@ mask_clouds <- function(img, bands, replacement_value, out_dir, param, tmp_dir =
 
     # build the cloud mask
     img_mask <- pixel_qa %>%
-        gdal_calc(
-            out_filename =
-                file.path(tmp_dir, paste0(paste("cloud_mask", img$sat_image,
-                                                sep = "_"), param[["fileext"]])),
+        gdalcmdline::gdal_calc(out_filename = file.path(tmp_dir,
+                                                        paste0(paste("cloud_mask",
+                                                                     img$sat_image,
+                                                                     sep = "_"),
+                                                        param[["fileext"]])),
             expression = "((numpy.bitwise_and(A, 40) != 0) * 1).astype(int16)",
             dstnodata = param[["dstnodata"]],
             out_format = param[["out_format"]],
@@ -34,7 +35,7 @@ mask_clouds <- function(img, bands, replacement_value, out_dir, param, tmp_dir =
                                                   if(nrow(row_x) != 1) return(NA_character_)
                                                   row_x %>% dplyr::select(file_path) %>% unlist() %>%
                                                       c(img_mask) %>%
-                                                      gdal_calc(
+                                                      gdalcmdline::gdal_calc(
                                                           out_filename = file.path(out_dir,
                                                                                    paste0(paste(img$sat_image, row_x$band,
                                                                                                 sep = "_"), "_maskcloud",
@@ -70,7 +71,7 @@ mask_negatives <- function(img, bands, replacement_value, out_dir, param, tmp_di
                                                       dplyr::filter(band %in% bands)
                                                   if(nrow(row_x) != 1) return(NA_character_)
                                                   row_x %>% dplyr::select(file_path) %>% unlist() %>%
-                                                      gdal_calc(
+                                                      gdalcmdline::gdal_calc(
                                                           out_filename = file.path(out_dir,
                                                                                    paste0(paste(img$sat_image, row_x$band,
                                                                                                 sep = "_"), "_maskneg", param[["fileext"]])),

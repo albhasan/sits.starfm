@@ -35,7 +35,7 @@ fill_clouds <- function(img) {
     # Build the cloud mask.
     qa_mosaic <- pixel_qa %>%
         gdal_warp(
-            out_filename = tempfile(pattern = paste("qa_mosaic", 
+            out_filename = tempfile(pattern = paste("qa_mosaic",
                                                    img$sat_image,
                                                    sep = "_"),
                                    fileext = param[["fileext"]]),
@@ -49,26 +49,26 @@ fill_clouds <- function(img) {
             dstnodata = param[["dstnodata"]])
 
     img_mask <- qa_mosaic %>%
-        gdal_calc(
-            out_filename = tempfile(pattern = paste("cloud_mask", 
-                                                   img$sat_image,
-                                                   sep = "_"),
-                                   fileext = param[["fileext"]]),
-            expression = "((numpy.bitwise_and(A, 40) != 0) * 1).astype(int16)",
-            dstnodata = param[["dstnodata"]],
-            out_format = param[["out_format"]],
-            creation_option = param[["creation_option"]])
+        gdalcmdline::gdal_calc(out_filename = tempfile(pattern = paste("cloud_mask",
+                                                                       img$sat_image,
+                                                                       sep = "_"),
+                                                       fileext = param[["fileext"]]),
+                               expression = "((numpy.bitwise_and(A, 40) != 0) * 1).astype(int16)",
+                               dstnodata = param[["dstnodata"]],
+                               out_format = param[["out_format"]],
+                               creation_option = param[["creation_option"]])
 
     # Helper function to do the filling.
     .fill_mask <- function(band, t0_fine, starfm, mask){
         if (is.na(t0_fine))
             return(starfm)
         c(t0_fine, mask, starfm) %>%
-            gdal_calc(
-                out_filename = tempfile(pattern = paste("filled", img$sat_image,
-                                                        band, sep = "_"),
-                                        fileext = param[["fileext"]]),
-                expression = "(numpy.where(B, C, A)).astype(int16)") %>%
+            gdalcmdline::gdal_calc(out_filename = tempfile(pattern = paste("filled",
+                                                                           img$sat_image,
+                                                                           band,
+                                                                           sep = "_"),
+                                                           fileext = param[["fileext"]]),
+                                   expression = "(numpy.where(B, C, A)).astype(int16)") %>%
             return()
     }
 
@@ -176,7 +176,7 @@ run_starFM <- function(img_t0, img_t1, band, out_file = NULL) {
             img_type = "MOD13Q1",
             band = band)
     if (!is.na(t0_fine))
-        t0_fine <- t0_fine %>% 
+        t0_fine <- t0_fine %>%
             .call_gadal_warp(
                 out_filename = tempfile(pattern = paste("t0_fine", img_t0$scene,
                                                         band, img_t1$img_date,

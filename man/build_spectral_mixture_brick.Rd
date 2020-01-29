@@ -4,10 +4,17 @@
 \alias{build_spectral_mixture_brick}
 \title{Helper function for building spectral mixture model bricks.}
 \usage{
-build_spectral_mixture_brick(brick_imgs, field_name, brick_prefix,
-  brick_path, brick_n_img, no_data = -9999, gdal_format = "GTiff",
-  gdal_options = c("TILED=YES", "COPY_SRC_OVERVIEWS=YES",
-  "COMPRESS=LZW"), tmp_dir = tempdir())
+build_spectral_mixture_brick(
+  brick_imgs,
+  field_name,
+  brick_prefix,
+  brick_path,
+  brick_n_img,
+  no_data = -9999,
+  gdal_format = "GTiff",
+  gdal_options = c("TILED=YES", "COPY_SRC_OVERVIEWS=YES", "COMPRESS=LZW"),
+  tmp_dir = tempdir()
+)
 }
 \arguments{
 \item{brick_imgs}{A tibble with metadata of satellite imagery (see build_brick_tibble2).}

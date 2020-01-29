@@ -17,13 +17,10 @@ pile_files <- function(file_paths, out_fn,
                        gdal_options = c("TILED=YES",
                                         "COPY_SRC_OVERVIEWS=YES",
                                         "COMPRESS=LZW")){
-    gdal_merge(input_files = file_paths,
-               out_filename = out_fn,
-               separate = TRUE,
-               of = gdal_format,
-               creation_option = gdal_options,
-               init = no_data,
-               a_nodata = no_data) %>%
+    gdalcmdline::gdal_merge(input_files = file_paths, out_filename = out_fn,
+                            separate = TRUE, of = gdal_format,
+                            creation_option = gdal_options, init = no_data,
+                            a_nodata = no_data) %>%
         invisible()
 }
 
