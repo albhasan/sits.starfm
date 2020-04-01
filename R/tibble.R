@@ -321,7 +321,7 @@ build_modis_tibble <- function(in_dir, pattern, from = NULL, to = NULL,
 #' @param in_dir   A charater. Path to a directory with images.
 #' @param from     A length-one character. The start date.
 #' @param to       A length-one character. The end date.
-#' the PRODES year. The default is "-08-01"
+#' @param pattern  A length-one character. A pattern to filter the image files by name.
 #' @return A tibble
 #' @export
 build_sentinel_tibble <- function(in_dir, from = NULL, to = NULL) {
@@ -330,20 +330,40 @@ build_sentinel_tibble <- function(in_dir, from = NULL, to = NULL) {
     # @author Alber Sanchez, \email{alber.ipia@@inpe.br}
     # @description Build a table from the bands of the given image directory.
     #
-    # @param path    A length-one charater. Path to a directory with images.
+    # @param path    Path to a directory with images.
     # @param pattern A length-one charater. A pattern to filter files.
     # @return     A tibble
-    get_bands <- function(path, pattern){
-        file_name <- NULL
-        path %>%
-            list.files(pattern = pattern, full.names = TRUE, recursive = TRUE) %>%
+    get_bands <- function(path){
+        .get_bands_helper <- function(path){
+            img_pattern <- c(
+                l1c         = "T[0-9]{2}[A-Z]{3}_[0-9]{8}T[1-9]{6}_[A-Z0-9]{3}.jp2$",
+                l2a_sen2cor = "T[0-9]{2}[A-Z]{3}_[0-9]{8}T[0-9]{6}_[A-Z0-9]{3}_[0-9]{2}m.jp2$",
+                l2a_maja    = "SENTINEL2(A|B)_[0-9]{8}-[0-9]{6}-[0-9]{3}_L2A_T[0-9]{2}[A-Z]{3}_[A-Z]_V[0-9]-[0-9]_[A-Z]{3}_[A-Z][0-9].tif$"
+            )
+            res <- lapply(img_pattern, function(pat){
+                       list.files(path, pattern = pat, recursive = TRUE)
+            })
+            return(res[which.max(length(res))])
+        }
+
+        separators <- list(
+            l1c         = c("tile", "acquisition", "band"),
+            l2a_sen2cor = c("tile", "acquisition", "band", "resolution"),
+            l2a_maja    = c(NA, "acquisition", NA, "tile", NA, NA, "type", "band")
+        )
+
+        file_vec <- .get_bands_helper(path)
+
+        file_vec %>%
+            unlist() %>%
             tibble::enframe(name = NULL) %>%
             dplyr::rename(file_path = "value") %>%
             dplyr::mutate(file_name = tools::file_path_sans_ext(basename(file_path))) %>%
-            tidyr::separate(col = file_name, into = c("tile", "acquisition",
-                                                      "band"), sep = '_') %>%
+            tidyr::separate(col = file_name, into = separators[[names(file_vec)[1]]],
+                            sep = '_') %>%
             return()
     }
+
     dir_name <- img_date <- NULL
     image_tb <- in_dir %>%
         list.dirs() %>%
@@ -354,8 +374,7 @@ build_sentinel_tibble <- function(in_dir, from = NULL, to = NULL) {
         tidyr::separate(col = dir_name,
                         into = c("mission", "level", "img_date", "baseline",
                                  "orbit", "tile", "processing"), sep = '_') %>%
-        dplyr::mutate(files = purrr::map(file_path, get_bands,
-                                         pattern = "([.]jp2$|[.]tif$)"),
+        dplyr::mutate(files = purrr::map(file_path, get_bands),
                       img_date = lubridate::as_date(img_date),
                       processing = lubridate::as_date(processing)) %>%
         ensurer::ensure_that(nrow(.) > 0,

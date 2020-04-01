@@ -1,4 +1,4 @@
-# STACK IMAGES ONE IN TOP OF ANOTHER.
+# STACK IMAGES IN TOP OF EACH OTHER.
 
 
 #' @title Pile image files into a sigle file.

@@ -2,7 +2,7 @@
 % Please edit documentation in R/images.R
 \name{match_tiles2scenes}
 \alias{match_tiles2scenes}
-\title{Match spacially MODIS tiles to Landsat Scenes.}
+\title{Match MODIS tiles to Landsat scenes.}
 \usage{
 match_tiles2scenes(scene_path, tile_path, scenes = NULL, tiles = NULL)
 }

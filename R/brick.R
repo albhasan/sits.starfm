@@ -1,4 +1,74 @@
-# PILE IMAGES BY BAND INTO TIFF FILES.
+
+
+#' @title Build a SITS brick using Sentinel-2 images.
+#' @author Alber Sanchez, \email{alber.ipia@@inpe.br}
+#' @description Build a SITS brick Sentinel2 images.
+#'
+#' @param in_dir        A length-one character. Path to a directory of HLS images.
+#' @param brick_tile    A length-one character. The tile of the brick.
+#' @param brick_from    A length-one character. The approximated first day of the brick.
+#' @param brick_to      A length-one character. The approximated last day of the brick.
+#' @param brick_bands   A character. The HLS bands.
+#' @param out_dir       A length-one integer. The output directory.
+#' @return              A tibble.
+#' @export
+#' @importFrom rlang .data
+build_brick_sentinel2 <- function(in_dir, brick_tile, brick_from, brick_to,
+                                  brick_bands, out_dir){
+# TODO: remove
+library(tidyverse)
+library(devtools)
+setwd("/home/alber/Documents/ghProjects/sits.starfm")
+devtools::load_all()
+in_dir    <- "/home/alber/Documents/data/experiments/prodes_reproduction/data/raster/sentinel2/L2A"
+cloud_dir <- "/home/alber/Documents/data/experiments/prodes_reproduction/papers/deforestation/data/raster/fmask4"
+out_dir   <- "/home/alber/Documents/data/experiments/prodes_reproduction/data/raster/brick_sentinel2_raw"
+#brick_tile    <- "T22MCA"
+brick_tile    <- "T20LKP"
+brick_from    <- as.Date("2018-08-01")
+brick_to      <- as.Date("2019-07-31")
+# brick_tile_landsat    <- "233067"
+#-----
+
+    # Get the cloud masks.
+    fmask_tb <- cloud_dir %>%
+        list.files(pattern = "L1C_T[A-Z0-9]{5}_A[0-9]{6}_[0-9]{8}T[0-9]{6}_Fmask4.tif",
+                   recursive = TRUE) %>%
+        tibble::enframe(name = NULL) %>%
+        dplyr::rename(band_path = value) %>%
+        dplyr::mutate(file_name = tools::file_path_sans_ext(basename(band_path))) %>%
+        tidyr::separate(col = file_name,
+                        into = c(NA, "tile", NA, "img_date", NA),
+                        sep = '_') %>%
+        dplyr::mutate(img_date = lubridate::as_date(stringr::str_sub(img_date, 1, 8)),
+                      img_path = NA,
+                      mission = NA,
+                      level = NA,
+                      orbit = NA,
+                      type = NA,
+                      band = "fmask4",
+                      resolution = NA) %>%
+        dplyr::select(tile, img_date, band_path, band)
+
+    # Get SentinelL2A-sen2cor images' metadata.
+    image_tb <- in_dir %>%
+        sits.starfm::build_sentinel_tibble() %>%
+        dplyr::filter(tile == brick_tile,
+                      img_date >= brick_from,
+                      img_date <= brick_to) %>%
+        dplyr::arrange(tile, img_date) %>%
+        tidyr::drop_na() %>%
+        ensurer::ensure_that(nrow(.) >= 23, err_desc = "Not enough images!") %>%
+        dplyr::rename(img_path = file_path) %>%
+        dplyr::select(-tile) %>%
+        tidyr::unnest(cols = files) %>%
+        dplyr::rename(band_path = file_path) %>%
+        dplyr::select(-c(acquisition, processing, baseline, resolution)) %>%
+        # Build VRTs
+        dplyr::group_by(tile, type)
+
+
+}
 
 
 #' @title Build a SITS brick using a mixture of HLS images.
