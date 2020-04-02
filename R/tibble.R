@@ -343,7 +343,7 @@ build_sentinel_tibble <- function(in_dir, from = NULL, to = NULL) {
             res <- lapply(img_pattern, function(pat){
                        list.files(path, pattern = pat, recursive = TRUE)
             })
-            return(res[which.max(length(res))])
+            return(res[which.max(vapply(res, length, integer(1)))])
         }
 
         separators <- list(
