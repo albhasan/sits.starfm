@@ -340,7 +340,8 @@ build_sentinel_tibble <- function(in_dir, from = NULL, to = NULL) {
                 l2a_maja    = "SENTINEL2(A|B)_[0-9]{8}-[0-9]{6}-[0-9]{3}_L2A_T[0-9]{2}[A-Z]{3}_[A-Z]_V[0-9]-[0-9]_[A-Z]{3}_[A-Z][0-9].tif$"
             )
             res <- lapply(img_pattern, function(pat){
-                       list.files(path, pattern = pat, recursive = TRUE)
+                       list.files(path, pattern = pat, full.names = TRUE,
+                                  recursive = TRUE)
             })
             return(res[which.max(vapply(res, length, integer(1)))])
         }
