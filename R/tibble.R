@@ -321,7 +321,6 @@ build_modis_tibble <- function(in_dir, pattern, from = NULL, to = NULL,
 #' @param in_dir   A charater. Path to a directory with images.
 #' @param from     A length-one character. The start date.
 #' @param to       A length-one character. The end date.
-#' @param pattern  A length-one character. A pattern to filter the image files by name.
 #' @return A tibble
 #' @export
 build_sentinel_tibble <- function(in_dir, from = NULL, to = NULL) {
