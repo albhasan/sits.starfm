@@ -2,14 +2,13 @@
 # BUILD BRICKS SENTINEL OF VEGETATION INDEXES
 #-------------------------------------------------------------------------------
 
-# TODO: Use the name of the inteprolation in the name of the brick
-
-
 library(dplyr)
 library(parallel)
 library(raster)
 
 tmp_directory <- "/disks/d3/tmp"
+dir.create(file.path(tmp_directory, "masked"))
+
 raster::rasterOptions(tmpdir = tmp_directory)
 raster::tmpDir()
 
@@ -62,8 +61,9 @@ raw_brick_tb <- sentinel_tb %>%
 sentinel_tb[["img_masked"]] <- parallel::mclapply(1:nrow(sentinel_tb),
                                                   helper_mask,
                                                   sentinel_tb = sentinel_tb,
-                                                  out_dir = tmp_directory,
-                                                  mc.cores = 8)
+                                                  out_dir = file.path(tmp_directory,
+                                                                      "masked"),
+                                                  mc.cores = 12)
 
 # Pile the images into POROUS BRICKS.
 interpolated_brick_tb <- sentinel_tb %>%
@@ -99,10 +99,9 @@ raw_vegind_tb[["vi_tb"]] <- parallel::mclapply(raw_vegind_tb$raw_vrt_file,
 raw_brick_vi_tb <- raw_vegind_tb %>%
     tidyr::unnest(vi_tb) %>%
     dplyr::select(-B02, -B03, -B04, -B08) %>%
-    tidyr::pivot_longer(cols = c("gemi", "mtvi", "ndvi", "ndwi", "osavi",
-                                 "rdvi", "savi"),
-                        names_to = "band",
-                        values_to = "file_path") %>%
+    tidyr::pivot_longer(cols = c("evi2", "gemi", "mtvi", "ndvi", "ndwi", "osavi",
+                                 "rdvi", "savi", "pc1rgbnir", "pc2rgbnir"),
+                        names_to = "band", values_to = "file_path") %>%
     dplyr::arrange(img_date) %>%
     dplyr::group_by(mission, level, baseline,
                     orbit, pyear, band, resolution) %>%
@@ -113,20 +112,23 @@ raw_brick_vi_tb <- raw_vegind_tb %>%
 # Mask the vegetation indexes.
 raw_vegind_tb <- raw_vegind_tb %>%
     tidyr::unnest(vi_tb)
-raw_vegind_tb[["gemi_masked"]]  <- parallel::mclapply(1:nrow(raw_vegind_tb), helper_mask2, img_tb = raw_vegind_tb, var = gemi,  out_dir = tmp_directory, mc.cores = 8)
-raw_vegind_tb[["mtvi_masked"]]  <- parallel::mclapply(1:nrow(raw_vegind_tb), helper_mask2, img_tb = raw_vegind_tb, var = mtvi,  out_dir = tmp_directory, mc.cores = 8)
-raw_vegind_tb[["ndvi_masked"]]  <- parallel::mclapply(1:nrow(raw_vegind_tb), helper_mask2, img_tb = raw_vegind_tb, var = ndvi,  out_dir = tmp_directory, mc.cores = 8)
-raw_vegind_tb[["ndwi_masked"]]  <- parallel::mclapply(1:nrow(raw_vegind_tb), helper_mask2, img_tb = raw_vegind_tb, var = ndwi,  out_dir = tmp_directory, mc.cores = 8)
-raw_vegind_tb[["osavi_masked"]] <- parallel::mclapply(1:nrow(raw_vegind_tb), helper_mask2, img_tb = raw_vegind_tb, var = osavi, out_dir = tmp_directory, mc.cores = 8)
-raw_vegind_tb[["rdvi_masked"]]  <- parallel::mclapply(1:nrow(raw_vegind_tb), helper_mask2, img_tb = raw_vegind_tb, var = rdvi,  out_dir = tmp_directory, mc.cores = 8)
-raw_vegind_tb[["savi_masked"]]  <- parallel::mclapply(1:nrow(raw_vegind_tb), helper_mask2, img_tb = raw_vegind_tb, var = savi,  out_dir = tmp_directory, mc.cores = 8)
+raw_vegind_tb[["evi2_masked"]]       <- parallel::mclapply(1:nrow(raw_vegind_tb), helper_mask2, img_tb = raw_vegind_tb, var = evi2,       out_dir = file.path(tmp_directory, "masked"), mc.cores = 8)
+raw_vegind_tb[["gemi_masked"]]       <- parallel::mclapply(1:nrow(raw_vegind_tb), helper_mask2, img_tb = raw_vegind_tb, var = gemi,       out_dir = file.path(tmp_directory, "masked"), mc.cores = 8)
+raw_vegind_tb[["mtvi_masked"]]       <- parallel::mclapply(1:nrow(raw_vegind_tb), helper_mask2, img_tb = raw_vegind_tb, var = mtvi,       out_dir = file.path(tmp_directory, "masked"), mc.cores = 8)
+raw_vegind_tb[["ndvi_masked"]]       <- parallel::mclapply(1:nrow(raw_vegind_tb), helper_mask2, img_tb = raw_vegind_tb, var = ndvi,       out_dir = file.path(tmp_directory, "masked"), mc.cores = 8)
+raw_vegind_tb[["ndwi_masked"]]       <- parallel::mclapply(1:nrow(raw_vegind_tb), helper_mask2, img_tb = raw_vegind_tb, var = ndwi,       out_dir = file.path(tmp_directory, "masked"), mc.cores = 8)
+raw_vegind_tb[["osavi_masked"]]      <- parallel::mclapply(1:nrow(raw_vegind_tb), helper_mask2, img_tb = raw_vegind_tb, var = osavi,      out_dir = file.path(tmp_directory, "masked"), mc.cores = 8)
+raw_vegind_tb[["rdvi_masked"]]       <- parallel::mclapply(1:nrow(raw_vegind_tb), helper_mask2, img_tb = raw_vegind_tb, var = rdvi,       out_dir = file.path(tmp_directory, "masked"), mc.cores = 8)
+raw_vegind_tb[["savi_masked"]]       <- parallel::mclapply(1:nrow(raw_vegind_tb), helper_mask2, img_tb = raw_vegind_tb, var = savi,       out_dir = file.path(tmp_directory, "masked"), mc.cores = 8)
+raw_vegind_tb[["pc1rgbnir_masked"]]  <- parallel::mclapply(1:nrow(raw_vegind_tb), helper_mask2, img_tb = raw_vegind_tb, var = pc1rgbnir,  out_dir = file.path(tmp_directory, "masked"), mc.cores = 8)
+raw_vegind_tb[["pc2rgbnir_masked"]]  <- parallel::mclapply(1:nrow(raw_vegind_tb), helper_mask2, img_tb = raw_vegind_tb, var = pc2rgbnir,  out_dir = file.path(tmp_directory, "masked"), mc.cores = 8)
 
 # Pile masked vegetation indexes into POROUS BRICKS.
 porous_brick_vi_tb <- raw_vegind_tb %>%
     dplyr::select(-B02, -B03, -B04, -B08) %>%
-    tidyr::pivot_longer(cols = c("gemi_masked", "mtvi_masked", "ndvi_masked",
-                                 "ndwi_masked", "osavi_masked", "rdvi_masked",
-                                 "savi_masked"),
+    tidyr::pivot_longer(
+                        #cols = c("evi2_masked", "gemi_masked", "mtvi_masked", "ndvi_masked", "ndwi_masked", "osavi_masked", "rdvi_masked", "savi_masked", "pc1rgbnir_masked", "pc2rgbnir_masked"),
+                        cols = c("pc1rgbnir_masked", "pc2rgbnir_masked"),
                         names_to = "band",
                         values_to = "file_path") %>%
     dplyr::arrange(img_date) %>%
@@ -141,11 +143,14 @@ script=/home/alber/Documents/ghProjects/sits.starfm/inst/examples/compare_sentin
 in_dir=/disks/d3/brick_sentinel2_interpolated/porous
 out_dir=/disks/d3/brick_sentinel2_interpolated/approx
 
-Rscript "$script" approx "$in_dir"/S2A_MSIL2A_R096_T20LKP_20180812T143751_gemi_masked_10m.tif  "$out_dir"/S2A_MSIL2A_R096_T20LKP_20180812T143751_gemi_masked_10m.tif
-Rscript "$script" approx "$in_dir"/S2A_MSIL2A_R096_T20LKP_20180812T143751_mtvi_masked_10m.tif  "$out_dir"/S2A_MSIL2A_R096_T20LKP_20180812T143751_mtvi_masked_10m.tif
-Rscript "$script" approx "$in_dir"/S2A_MSIL2A_R096_T20LKP_20180812T143751_ndvi_masked_10m.tif  "$out_dir"/S2A_MSIL2A_R096_T20LKP_20180812T143751_ndvi_masked_10m.tif
-Rscript "$script" approx "$in_dir"/S2A_MSIL2A_R096_T20LKP_20180812T143751_ndwi_masked_10m.tif  "$out_dir"/S2A_MSIL2A_R096_T20LKP_20180812T143751_ndwi_masked_10m.tif
-Rscript "$script" approx "$in_dir"/S2A_MSIL2A_R096_T20LKP_20180812T143751_osavi_masked_10m.tif "$out_dir"/S2A_MSIL2A_R096_T20LKP_20180812T143751_osavi_masked_10m.tif
-Rscript "$script" approx "$in_dir"/S2A_MSIL2A_R096_T20LKP_20180812T143751_rdvi_masked_10m.tif  "$out_dir"/S2A_MSIL2A_R096_T20LKP_20180812T143751_rdvi_masked_10m.tif
-Rscript "$script" approx "$in_dir"/S2A_MSIL2A_R096_T20LKP_20180812T143751_savi_masked_10m.tif  "$out_dir"/S2A_MSIL2A_R096_T20LKP_20180812T143751_savi_masked_10m.tif
+Rscript "$script" approx "$in_dir"/S2A_MSIL2A_R096_T20LKP_20180812T143751_evi2_masked_10m.tif  "$out_dir"/S2A_MSIL2A_R096_T20LKP_20180812T143751_evi2_10m.tif
+Rscript "$script" approx "$in_dir"/S2A_MSIL2A_R096_T20LKP_20180812T143751_gemi_masked_10m.tif  "$out_dir"/S2A_MSIL2A_R096_T20LKP_20180812T143751_gemi_10m.tif
+Rscript "$script" approx "$in_dir"/S2A_MSIL2A_R096_T20LKP_20180812T143751_mtvi_masked_10m.tif  "$out_dir"/S2A_MSIL2A_R096_T20LKP_20180812T143751_mtvi_10m.tif
+Rscript "$script" approx "$in_dir"/S2A_MSIL2A_R096_T20LKP_20180812T143751_ndvi_masked_10m.tif  "$out_dir"/S2A_MSIL2A_R096_T20LKP_20180812T143751_ndvi_10m.tif
+Rscript "$script" approx "$in_dir"/S2A_MSIL2A_R096_T20LKP_20180812T143751_ndwi_masked_10m.tif  "$out_dir"/S2A_MSIL2A_R096_T20LKP_20180812T143751_ndwi_10m.tif
+Rscript "$script" approx "$in_dir"/S2A_MSIL2A_R096_T20LKP_20180812T143751_osavi_masked_10m.tif "$out_dir"/S2A_MSIL2A_R096_T20LKP_20180812T143751_osavi_10m.tif
+Rscript "$script" approx "$in_dir"/S2A_MSIL2A_R096_T20LKP_20180812T143751_rdvi_masked_10m.tif  "$out_dir"/S2A_MSIL2A_R096_T20LKP_20180812T143751_rdvi_10m.tif
+Rscript "$script" approx "$in_dir"/S2A_MSIL2A_R096_T20LKP_20180812T143751_savi_masked_10m.tif  "$out_dir"/S2A_MSIL2A_R096_T20LKP_20180812T143751_savi_10m.tif
+Rscript "$script" approx "$in_dir"/S2A_MSIL2A_R096_T20LKP_20180812T143751_pc1rgbnir_masked_10m.tif  "$out_dir"/S2A_MSIL2A_R096_T20LKP_20180812T143751_pc1rgbnir_10m.tif
+Rscript "$script" approx "$in_dir"/S2A_MSIL2A_R096_T20LKP_20180812T143751_pc2rgbnir_masked_10m.tif  "$out_dir"/S2A_MSIL2A_R096_T20LKP_20180812T143751_pc2rgbnir_10m.tif
 

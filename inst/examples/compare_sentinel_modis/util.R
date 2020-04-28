@@ -1,3 +1,24 @@
+# Remove invalid samples of time series.
+#
+# @param  sits_tb A sits_tibble.
+# @return A sits_tibble.
+clean_ts <- function(sits_tb){
+    sits_tb %>%
+        sits::sits_prune() %>%
+        tidyr::drop_na() %>%
+        dplyr::mutate(has_na   = purrr::map_lgl(time_series, function(x){return(any(is.na(x)))}),
+                      has_null = purrr::map_lgl(time_series, function(x){return(any(is.null(x)))}),
+                      n_cols = purrr::map_int(time_series, ncol),
+                      n_rows = purrr::map_int(time_series, nrow)) %>%
+        dplyr::filter(has_na   == FALSE,
+                      has_null == FALSE,
+                      n_cols > 1,
+                      n_rows > 0) %>%
+        dplyr::select(-has_na, -has_null, -n_cols, -n_rows) %>%
+        return()
+}
+
+
 # Compute vegetation indexes of Sentinel images.
 #
 # @param vrt_file A lenght-one character. Path to a VRT file of Sentinel-2 10 meter bands B02, B03, B04, and B08.
@@ -10,6 +31,7 @@ compute_vi_sentinel <- function(vrt_file, out_file, index_name){
     #
     index_name <- toupper(index_name)
     cmd <- list()
+    cmd[["EVI2"]] <- sprintf("gdal_calc.py -A %s --A_band=4 -B %s --B_band=3 --outfile=%s --calc='(2.5 * (A - B)/(A + 24000*B + 10000.001)*10000).astype(int16)' --NoDataValue=-9999 --type='Int16' --creation-option='COMPRESS=LZW' --creation-option='BIGTIFF=YES'", vrt_file, vrt_file, out_file)
     cmd[["NDVI"]] <- sprintf("gdal_calc.py -A %s --A_band=4 -B %s --B_band=3 --outfile=%s --calc='((A - B)/(A + B + 0.001)*10000).astype(int16)' --NoDataValue=-9999 --type='Int16' --creation-option='COMPRESS=LZW' --creation-option='BIGTIFF=YES'", vrt_file, vrt_file, out_file)
     cmd[["NDWI"]] <- sprintf("gdal_calc.py -A %s --A_band=2 -B %s --B_band=4 --outfile=%s --calc='((A - B)/(A + B + 0.001)*10000).astype(int16)' --NoDataValue=-9999 --type='Int16' --creation-option='COMPRESS=LZW' --creation-option='BIGTIFF=YES'", vrt_file, vrt_file, out_file)
     cmd[["SAVI"]] <- sprintf("gdal_calc.py -A %s --A_band=4 -B %s --B_band=3 --outfile=%s --calc='((A - B)/(A + B + 4280.001) * (10000 + 4280)).astype(int16)' --NoDataValue=-9999 --type='Int16' --creation-option='COMPRESS=LZW' --creation-option='BIGTIFF=YES'", vrt_file, vrt_file, out_file)
@@ -21,6 +43,8 @@ compute_vi_sentinel <- function(vrt_file, out_file, index_name){
     cmd[["OSAVI"]] <- sprintf("gdal_calc.py -A %s --A_band=4 -B %s --B_band=3 --outfile=%s --calc='((1 + 0.16) * (A - B)/(A + B + 1600.0001)*10000).astype(int16)' --NoDataValue=-9999 --type='Int16' --creation-option='COMPRESS=LZW' --creation-option='BIGTIFF=YES'", vrt_file, vrt_file, out_file)
     cmd[["RDVI"]]  <- sprintf("gdal_calc.py -A %s --A_band=4 -B %s --B_band=3 --outfile=%s --calc='((A*A - 2*A*B + B*B)/(A + B + 0.0001)).astype(int16)' --NoDataValue=-9999 --type='Int16' --creation-option='COMPRESS=LZW' --creation-option='BIGTIFF=YES'", vrt_file, vrt_file, out_file)
     cmd[["RDVI2"]] <- cmd[["RDVI"]]
+    cmd[["PC1RGBNIR"]] <- sprintf("gdal_calc.py -A %s --A_band=1 -B %s --B_band=2 -C %s --C_band=3 -D %s --D_band=4 --outfile=%s --calc='(0.06379167*A + 0.14536839*B + 0.04085506*C + 0.98647327*D).astype(int16)' --NoDataValue=-9999 --type='Int16' --creation-option='COMPRESS=LZW' --creation-option='BIGTIFF=YES'", vrt_file, vrt_file, vrt_file, vrt_file, out_file)
+    cmd[["PC2RGBNIR"]] <- sprintf("gdal_calc.py -A %s --A_band=1 -B %s --B_band=2 -C %s --C_band=3 -D %s --D_band=4 --outfile=%s --calc='(-0.4401453*A + -0.5317655*B + -0.7105860*C +  0.1362536*D).astype(int16)' --NoDataValue=-9999 --type='Int16' --creation-option='COMPRESS=LZW' --creation-option='BIGTIFF=YES'", vrt_file, vrt_file, vrt_file, vrt_file, out_file)
     #
     if(index_name %in% names(cmd) == FALSE) {
         stop(sprintf("Unknown index: %s", index_name))
@@ -114,6 +138,71 @@ get_img_dimensions <- function(in_file) {
 }
 
 
+# Get metadata of the Sentinel-2 bricks.
+#
+# @param in_dir          A length-one character. Path to a directory.
+# @param n_expected_band A length-one integer. The number of bands and vegetation indixes in the brick.
+# @return                A tibble.
+get_brick <- function(in_dir, n_expected_bands = 12){
+    in_dir %>%
+        get_brick_md() %>%
+        dplyr::arrange(tile, img_date, band) %>%
+        ensurer::ensure_that(nrow(.) == n_expected_bands,
+                             err_desc = sprintf("Unknown bands or indexes: %s",
+                                                 in_dir)) %>%
+        ensurer::ensure_that(length(unique(.$img_date)) == 1,
+                             err_desc = sprintf("More than one date found: %s",
+                                                in_dir)) %>%
+        ensurer::ensure_that(length(unique(.$tile)) == 1,
+                             err_desc = sprintf("More than one tile found: %s",
+                                                in_dir)) %>%
+        ensurer::ensure_that(!"" %in% .$band) %>%
+        return()
+}
+
+
+# Get the metadata of the Sentinel-2 bricks in a directory.
+#
+# @param in_dir A length-one character. Path to a directory.
+# @return       A tibble.
+get_brick_md <- function(in_dir){
+    file_band_names <- tibble::tribble(
+        ~file_band, ~band,
+        "B02",        "blue",
+        "B03",        "green",
+        "B04",        "red",
+        "B08",        "bnir",
+        "evi2",       "evi2",
+        "gemi",       "gemi",
+        "mtvi",       "mtvi",
+        "ndvi",       "ndvi",
+        "ndwi",       "ndwi",
+        "osavi",      "osavi",
+        "rdvi",       "rdvi",
+        "savi",       "savi"
+    )
+    in_dir %>%
+        list.files(pattern = ".[.]tif$", full.names = TRUE) %>%
+        tibble::enframe(name = NULL) %>%
+        dplyr::rename(file_path = value) %>%
+        dplyr::mutate(file_name = tools::file_path_sans_ext(basename(file_path))) %>%
+        tidyr::separate(col = file_name, into = c("mission", "level", "orbit",
+                                                  "tile", "img_date", "file_band",
+                                                  "band_complement",
+                                                  "resolution"),
+                        sep = '_', extra = "drop", fill = "right") %>%
+        dplyr::mutate(resolution = ifelse(band_complement %in% c("10m", "20m", "60m"),
+                                          band_complement, resolution),
+                      band_complement = ifelse(band_complement %in% c("10m", "20m", "60m"),
+                                               "", band_complement),
+                      img_date = lubridate::as_date(stringr::str_sub(img_date,
+                                                                     1, 8))) %>%
+        dplyr::select(-band_complement) %>%
+        dplyr::left_join(file_band_names, by = "file_band") %>%
+        return()
+}
+
+
 # Mask a sentinel image.
 #
 # @param file_path  A length-one character. Path to a file.
@@ -123,8 +212,8 @@ get_img_dimensions <- function(in_file) {
 mask_sentinel <- function(file_path, fmask_path, out_dir) {
     out_file <- file_path %>%
         basename() %>%
-        tools::file_path_sans_ext() %>%
-        stringr::str_c("_masked.tif") %>%
+        #tools::file_path_sans_ext() %>%
+        #stringr::str_c("_masked.tif") %>%
         (function(.x){ return(file.path(out_dir, .x))})
     vrt_file <- c(file_path, fmask_path) %>%
         gdalcmdline::gdal_build_vrt(out_filename = tempfile(pattern = "gdalbuildvrt_",
@@ -406,7 +495,7 @@ helper_pile_raw <- function(.x, out_dir){
 # @param vrt_file A lenght-one character. Path to a VRT file of a Sentinel-2 image.
 # @return         A tibble.
 helper_vi <- function(vrt_file){
-    vi_names <- c("gemi", "mtvi", "ndvi", "ndwi", "osavi", "rdvi", "savi")
+    vi_names <- c("evi2", "gemi", "mtvi", "ndvi", "ndwi", "osavi", "rdvi", "savi", "pc1rgbnir", "pc2rgbnir")
     out_files <- vi_names %>%
         paste0('_') %>%
         lapply(tempfile, fileext = ".tif") %>%
