@@ -141,11 +141,14 @@ default:
             mtvi            : -9999
             ndvi            : -9999
             ndwi            : -9999
+            nnir            : -9999
             osavi           : -9999
             rdvi            : -9999
             savi            : -9999
-            PC1RGBNIR       : -9999
-            PC2RGBNIR       : -9999
+            swir1           : -9999
+            swir2           : -9999
+            pc1rgbnir       : -9999
+            pc2rgbnir       : -9999
 
         minimum_value       :
             blue            : 0
@@ -157,11 +160,14 @@ default:
             mtvi            : 0
             ndvi            : -9999
             ndwi            : 0
+            nnir            : 0
             osavi           : -9999 
             rdvi            : 0
             savi            : -9999 
-            PC1RGBNIR       : -9999
-            PC2RGBNIR       : -9999
+            swir1            : 0
+            swir2            : 0
+            pc1rgbnir       : -9999
+            pc2rgbnir       : -9999
 
         maximum_value       :
             blue            : 10000
@@ -173,11 +179,14 @@ default:
             mtvi            : 10000
             ndvi            : 10000
             ndwi            : 10000
+            nnir            : 10000
             osavi           : 10000
             rdvi            : 10000
             savi            : 10000
-            PC1RGBNIR       : 10000
-            PC2RGBNIR       : 10000
+            swir1           : 10000
+            swir2           : 10000
+            pc1rgbnir       : 10000
+            pc2rgbnir       : 10000
 
         scale_factor:
             blue            : 0.0001
@@ -189,11 +198,14 @@ default:
             mtvi            : 0.0001
             ndvi            : 0.0001
             ndwi            : 0.0001
+            nnir            : 0.0001
             osavi           : 0.0001
             rdvi            : 0.0001
             savi            : 0.0001
-            PC1RGBNIR       : 0.0001
-            PC2RGBNIR       : 0.0001
+            swir1           : 0.0001
+            swir2           : 0.0001
+            pc1rgbnir       : 0.0001
+            pc2rgbnir       : 0.0001
 
         resolution          :
             xres            : 10
