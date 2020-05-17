@@ -136,9 +136,11 @@ default:
             green           : -9999
             red             : -9999
             bnir            : -9999
+            evi             : -9999
             evi2            : -9999
             gemi            : -9999
             mtvi            : -9999
+            ndmi            : -9999
             ndvi            : -9999
             ndwi            : -9999
             nnir            : -9999
@@ -155,9 +157,11 @@ default:
             green           : 0
             red             : 0
             bnir            : 0
+            evi             : -9999
             evi2            : -9999
             gemi            : 0
             mtvi            : 0
+            ndmi            : -9999
             ndvi            : -9999
             ndwi            : 0
             nnir            : 0
@@ -174,9 +178,11 @@ default:
             green           : 10000
             red             : 10000
             bnir            : 10000
+            evi             : 10000
             evi2            : 10000
             gemi            : 10000
             mtvi            : 10000
+            ndmi            : 10000
             ndvi            : 10000
             ndwi            : 10000
             nnir            : 10000
@@ -193,9 +199,11 @@ default:
             green           : 0.0001
             red             : 0.0001
             bnir            : 0.0001
+            evi             : 0.0001
             evi2            : 0.0001
             gemi            : 0.0001
             mtvi            : 0.0001
+            ndmi            : 0.0001
             ndvi            : 0.0001
             ndwi            : 0.0001
             nnir            : 0.0001
