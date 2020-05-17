@@ -1,22 +1,71 @@
 # Remove invalid samples of time series.
 #
 # @param  sits_tb A sits_tibble.
+# @report report  When TRUE, not cleaning is done, just marking the offending samples.
 # @return A sits_tibble.
-clean_ts <- function(sits_tb){
+clean_ts <- function(sits_tb, report = FALSE){
     sits_tb %>%
         sits::sits_prune() %>%
         tidyr::drop_na() %>%
-        dplyr::mutate(has_na   = purrr::map_lgl(time_series, function(x){return(any(is.na(x)))}),
-                      has_null = purrr::map_lgl(time_series, function(x){return(any(is.null(x)))}),
-                      n_cols = purrr::map_int(time_series, ncol),
-                      n_rows = purrr::map_int(time_series, nrow)) %>%
-        dplyr::filter(has_na   == FALSE,
-                      has_null == FALSE,
-                      n_cols > 1,
-                      n_rows > 0) %>%
-        dplyr::select(-has_na, -has_null, -n_cols, -n_rows) %>%
+        dplyr::mutate(has_na    = purrr::map_lgl(time_series, function(x){return(any(is.na(x)))}),
+                      has_null  = purrr::map_lgl(time_series, function(x){return(any(is.null(x)))}),
+                      time_mean = purrr::map_dbl(time_series, function(x){return(mean(x[[1]]))}),
+                      overflow  = purrr::map_dbl(time_series, function(x){return(any(any(as.matrix(x[,2:ncol(x)]) < -1), any(as.matrix(x[,2:ncol(x)]) > 1)))}),
+                      n_cols    = purrr::map_int(time_series, ncol),
+                      n_rows    = purrr::map_int(time_series, nrow)) %>%
+        (function(.data){
+             if (report){
+                 return(.data)
+             }else{
+                 .data <- .data %>%
+                     tidyr::drop_na() %>%
+                     dplyr::filter(!has_null,
+                                   n_cols > 1,
+                                   n_rows > 0) %>%
+                     dplyr::mutate(time_series = purrr::map(time_series, function(x){
+                         my_approx <- function(v) {
+                             apply(v, 2,
+                             function(x) {
+                                 i <- tryCatch({
+                                     approx(x, n = length(x))
+                                 }, error = function(e) list(y = rep(0, length(x))))
+                                 return(i$y)
+                             })
+                         }
+                         data_mt <- as.matrix(x[,2:ncol(x)])
+                         data_mt[data_mt <= -1] <- NA
+                         data_mt[data_mt >= 1]  <- NA
+                         interp_mt <- my_approx(data_mt)
+                         x %>%
+                             dplyr::select(Index) %>%
+                             dplyr::bind_cols(tibble::as_tibble(interp_mt)) %>%
+                             return()
+                     })) %>%
+                     dplyr::select(-has_na, -has_null, -time_mean,
+                                   -overflow, -n_cols, -n_rows)
+                 n_removed <- nrow(sits_tb) - nrow(.data)
+                 if (n_removed > 0)
+                     warning(sprintf("Removed %s invalid samples out of  %s",
+                                     n_removed, nrow(sits_tb)))
+                 return(.data)
+             }
+        }) %>%
         return()
 }
+
+
+# Compute all the combinations of n of the given bands.
+#
+# @param .data           n_bands. An integer.
+# @param available_bands A character. The names of the bands.
+# @return                A list of vectors.
+combine_n_bands <- function(n_bands, available_bands){
+    available_bands %>%
+        combn(m = n_bands) %>%
+        split(f = col(.)) %>%
+        return()
+}
+
 
 
 # Compute vegetation indexes of Sentinel images.
@@ -26,25 +75,32 @@ clean_ts <- function(sits_tb){
 # @param out_file A lenght-one character. Short name of a index.
 # @return    A character. A temporal file.
 compute_vi_sentinel <- function(vrt_file, out_file, index_name){
-    # SAVI https://github.com/sentinel-hub/custom-scripts/blob/master/sentinel-2/savi/script.js
-    # NDWI https://doi.org/10.1080/01431169608948714
-    #
+    # VRT file:
+    # - B02 blue   1
+    # - B03 green  2
+    # - B04 red    3
+    # - B08 bnir   4
+    # - B11 swir1  5
     index_name <- toupper(index_name)
     cmd <- list()
-    cmd[["EVI2"]] <- sprintf("gdal_calc.py -A %s --A_band=4 -B %s --B_band=3 --outfile=%s --calc='(2.5 * (A - B)/(A + 24000*B + 10000.001)*10000).astype(int16)' --NoDataValue=-9999 --type='Int16' --creation-option='COMPRESS=LZW' --creation-option='BIGTIFF=YES'", vrt_file, vrt_file, out_file)
+    cmd[["EVI"]] <- sprintf("gdal_calc.py -A %s --A_band=4 -B %s --B_band=3 -C %s --C_band=1 --outfile=%s --calc='(10000 * 2.5 * (A - B) / (A + 6.0 * B - 7.5 * C + 10000.001)).astype(int16)' --NoDataValue=-9999 --type='Int16' --creation-option='COMPRESS=LZW' --creation-option='BIGTIFF=YES'", vrt_file, vrt_file, vrt_file, out_file)
+    cmd[["NDMI"]] <- sprintf("gdal_calc.py -A %s --A_band=4 -B %s --B_band=5 --outfile=%s --calc='((A - B)/(A + B + 0.001)*10000).astype(int16)' --NoDataValue=-9999 --type='Int16' --creation-option='COMPRESS=LZW' --creation-option='BIGTIFF=YES'", vrt_file, vrt_file, out_file)
     cmd[["NDVI"]] <- sprintf("gdal_calc.py -A %s --A_band=4 -B %s --B_band=3 --outfile=%s --calc='((A - B)/(A + B + 0.001)*10000).astype(int16)' --NoDataValue=-9999 --type='Int16' --creation-option='COMPRESS=LZW' --creation-option='BIGTIFF=YES'", vrt_file, vrt_file, out_file)
-    cmd[["NDWI"]] <- sprintf("gdal_calc.py -A %s --A_band=2 -B %s --B_band=4 --outfile=%s --calc='((A - B)/(A + B + 0.001)*10000).astype(int16)' --NoDataValue=-9999 --type='Int16' --creation-option='COMPRESS=LZW' --creation-option='BIGTIFF=YES'", vrt_file, vrt_file, out_file)
-    cmd[["SAVI"]] <- sprintf("gdal_calc.py -A %s --A_band=4 -B %s --B_band=3 --outfile=%s --calc='((A - B)/(A + B + 4280.001) * (10000 + 4280)).astype(int16)' --NoDataValue=-9999 --type='Int16' --creation-option='COMPRESS=LZW' --creation-option='BIGTIFF=YES'", vrt_file, vrt_file, out_file)
-# GEMI Cao et al 2009 Pinty and verstraete 1992
-# n = ((2*(A*A - B*B) + 1.5*A + 0.5*B)/(A + B + 5000.0001))
-# GEMI = (n*(1 - 0.25*n) - (B - 1250)/(10000.0001 - B)) * 10000
-    cmd[["GEMI"]] <- sprintf("gdal_calc.py -A %s --A_band=4 -B %s  --B_band=3 --outfile=%s --calc='((((2*(A*A - B*B) + 1.5*A + 0.5*B)/(A + B + 5000.0001))*(1 - 0.25*((2*(A*A - B*B) + 1.5*A + 0.5*B)/(A + B + 5000.0001))) - (B - 1250)/(10000.0001 - B)) * 10000).astype(int16)' --NoDataValue=-9999 --type='Int16' --creation-option='COMPRESS=LZW' --creation-option='BIGTIFF=YES'", vrt_file, vrt_file, out_file)
+    cmd[["SAVI"]] <- sprintf("gdal_calc.py -A %s --A_band=4 -B %s --B_band=3 --outfile=%s --calc='((A - B)/(A + B + 4280.0011) * (10000 + 4280)).astype(int16)' --NoDataValue=-9999 --type='Int16' --creation-option='COMPRESS=LZW' --creation-option='BIGTIFF=YES'", vrt_file, vrt_file, out_file)
     cmd[["MTVI"]]  <- sprintf("gdal_calc.py -A %s --A_band=4 -B %s --B_band=3 -C %s --C_band=2 --outfile=%s --calc='(1.2 * (1.2 * (A - C) - 2.5 * (B - C))).astype(int16)' --NoDataValue=-9999 --type='Int16' --creation-option='COMPRESS=LZW' --creation-option='BIGTIFF=YES'", vrt_file, vrt_file, vrt_file, out_file)
     cmd[["OSAVI"]] <- sprintf("gdal_calc.py -A %s --A_band=4 -B %s --B_band=3 --outfile=%s --calc='((1 + 0.16) * (A - B)/(A + B + 1600.0001)*10000).astype(int16)' --NoDataValue=-9999 --type='Int16' --creation-option='COMPRESS=LZW' --creation-option='BIGTIFF=YES'", vrt_file, vrt_file, out_file)
-    cmd[["RDVI"]]  <- sprintf("gdal_calc.py -A %s --A_band=4 -B %s --B_band=3 --outfile=%s --calc='((A*A - 2*A*B + B*B)/(A + B + 0.0001)).astype(int16)' --NoDataValue=-9999 --type='Int16' --creation-option='COMPRESS=LZW' --creation-option='BIGTIFF=YES'", vrt_file, vrt_file, out_file)
+    cmd[["RDVI"]]  <- sprintf("gdal_calc.py -A %s --A_band=4 -B %s --B_band=3 --outfile=%s --calc='((A - B)/((A + B)/10000.001)**0.5).astype(int16)' --NoDataValue=-9999 --type='Int16' --creation-option='COMPRESS=LZW' --creation-option='BIGTIFF=YES'", vrt_file, vrt_file, out_file)
     cmd[["RDVI2"]] <- cmd[["RDVI"]]
-    cmd[["PC1RGBNIR"]] <- sprintf("gdal_calc.py -A %s --A_band=1 -B %s --B_band=2 -C %s --C_band=3 -D %s --D_band=4 --outfile=%s --calc='(0.06379167*A + 0.14536839*B + 0.04085506*C + 0.98647327*D).astype(int16)' --NoDataValue=-9999 --type='Int16' --creation-option='COMPRESS=LZW' --creation-option='BIGTIFF=YES'", vrt_file, vrt_file, vrt_file, vrt_file, out_file)
-    cmd[["PC2RGBNIR"]] <- sprintf("gdal_calc.py -A %s --A_band=1 -B %s --B_band=2 -C %s --C_band=3 -D %s --D_band=4 --outfile=%s --calc='(-0.4401453*A + -0.5317655*B + -0.7105860*C +  0.1362536*D).astype(int16)' --NoDataValue=-9999 --type='Int16' --creation-option='COMPRESS=LZW' --creation-option='BIGTIFF=YES'", vrt_file, vrt_file, vrt_file, vrt_file, out_file)
+    #cmd[["PC1RGBNIR"]] <- sprintf("gdal_calc.py -A %s --A_band=1 -B %s --B_band=2 -C %s --C_band=3 -D %s --D_band=4 --outfile=%s --calc='(0.06379167*A + 0.14536839*B + 0.04085506*C + 0.98647327*D).astype(int16)' --NoDataValue=-9999 --type='Int16' --creation-option='COMPRESS=LZW' --creation-option='BIGTIFF=YES'", vrt_file, vrt_file, vrt_file, vrt_file, out_file)
+    #cmd[["PC2RGBNIR"]] <- sprintf("gdal_calc.py -A %s --A_band=1 -B %s --B_band=2 -C %s --C_band=3 -D %s --D_band=4 --outfile=%s --calc='(-0.4401453*A + -0.5317655*B + -0.7105860*C +  0.1362536*D).astype(int16)' --NoDataValue=-9999 --type='Int16' --creation-option='COMPRESS=LZW' --creation-option='BIGTIFF=YES'", vrt_file, vrt_file, vrt_file, vrt_file, out_file)
+    # WRONG cmd[["EVI2"]] <- sprintf("gdal_calc.py -A %s --A_band=4 -B %s --B_band=3 --outfile=%s --calc='(24000 * (A - B)/(A + B + 10000.001)).astype(int16)' --NoDataValue=-9999 --type='Int16' --creation-option='COMPRESS=LZW' --creation-option='BIGTIFF=YES'", vrt_file, vrt_file, out_file)
+# GEMI Cao et al 2009 Pinty and verstraete 1992
+# n = ((2/10000 * (A^2 - B^2) + 1.5*A + 0.5*B)/(A + B + 5000.001))
+# GEMI = (n*(1 - 0.25*n) - (B - 1250)/(10000.0001 - B)) * 10000
+    # WRONG cmd[["GEMI"]] <- sprintf("gdal_calc.py -A %s --A_band=4 -B %s  --B_band=3 --outfile=%s --calc='((((2/10000 * (A*A - B*B) + 1.5*A + 0.5*B)/(A + B + 5000.001))*(1 - 0.25*((2/10000 * (A*A - B*B) + 1.5*A + 0.5*B)/(A + B + 5000.001))) - (B - 1250)/(10000.0001 - B)) * 10000).astype(int16)' --NoDataValue=-9999 --type='Int16' --creation-option='COMPRESS=LZW' --creation-option='BIGTIFF=YES'", vrt_file, vrt_file, out_file)
+    #
+    # SAVI https://github.com/sentinel-hub/custom-scripts/blob/master/sentinel-2/savi/script.js
+    # NDWI https://doi.org/10.1080/01431169608948714
     #
     if(index_name %in% names(cmd) == FALSE) {
         stop(sprintf("Unknown index: %s", index_name))
@@ -113,6 +169,29 @@ filter_and_pile <- function(band_name, img_tb, out_pattern){
 }
 
 
+# Get the user or producer accuracies from an accuracy object.
+# @param x        An accuracy object.
+# @param label    A lenght-one character. A label(or class name).
+# @param acc_type A lenght-one character. The type of accuracy: Producer (pa) or User (ua)
+# @return         A matrix or NA.
+get_up_accuracy <- function(x, label, acc_type = "pa") {
+    stopifnot(acc_type %in% c("pa", "ua"))
+    if (acc_type == "pa")
+        accuracy_label <- "Sensitivity"
+    if (acc_type == "ua")
+        accuracy_label <- "Pos Pred Value"
+    index_mt <- x %>%
+        magrittr::extract2("byClass")
+    row_id <- match(toupper(label), stringr::str_match(toupper(rownames(index_mt)),
+                                              toupper(label)))
+    col_id <- match(accuracy_label, stringr::str_match(colnames(index_mt),
+                                                       accuracy_label))
+    if (any(is.na(c(row_id, col_id))))
+        return(NA)
+    return(index_mt[row_id, col_id])
+}
+
+
 # Get the dimension of an image using gdal_info.
 #
 # @param in_file A character.
@@ -141,15 +220,11 @@ get_img_dimensions <- function(in_file) {
 # Get metadata of the Sentinel-2 bricks.
 #
 # @param in_dir          A length-one character. Path to a directory.
-# @param n_expected_band A length-one integer. The number of bands and vegetation indixes in the brick.
 # @return                A tibble.
-get_brick <- function(in_dir, n_expected_bands = 12){
+get_brick <- function(in_dir){
     in_dir %>%
         get_brick_md() %>%
         dplyr::arrange(tile, img_date, band) %>%
-        ensurer::ensure_that(nrow(.) == n_expected_bands,
-                             err_desc = sprintf("Unknown bands or indexes: %s",
-                                                 in_dir)) %>%
         ensurer::ensure_that(length(unique(.$img_date)) == 1,
                              err_desc = sprintf("More than one date found: %s",
                                                 in_dir)) %>%
@@ -172,17 +247,24 @@ get_brick_md <- function(in_dir){
         "B03",        "green",
         "B04",        "red",
         "B08",        "bnir",
+        "B8A",        "nnir",
+        "B11",        "swir1",
+        "B12",        "swir2",
+        "evi",        "evi",
         "evi2",       "evi2",
         "gemi",       "gemi",
         "mtvi",       "mtvi",
+        "ndmi",       "ndmi",
         "ndvi",       "ndvi",
         "ndwi",       "ndwi",
         "osavi",      "osavi",
         "rdvi",       "rdvi",
-        "savi",       "savi"
+        "savi",       "savi",
+        "pc1rgbnir",  "pc1rgbnir",
+        "pc2rgbnir",  "pc2rgbnir"
     )
     in_dir %>%
-        list.files(pattern = ".[.]tif$", full.names = TRUE) %>%
+        list.files(pattern = ".[.](tif|vrt)$", full.names = TRUE) %>%
         tibble::enframe(name = NULL) %>%
         dplyr::rename(file_path = value) %>%
         dplyr::mutate(file_name = tools::file_path_sans_ext(basename(file_path))) %>%
@@ -296,6 +378,39 @@ prodes_year <- function(x){
 }
 
 
+#  Select some bands in a sits tibble using a character.
+#
+# @param  x A sits tibble.
+# @param  bands A character. The name of some bands in the time series column of the given sits tibble.
+# @return A sits tibble.
+select_bands <- function(x, bands){
+    bands <- c("Index", bands)
+    x$time_series <- lapply(x$time_series, function(y){
+                                if(all(bands %in% colnames(y)))
+                                    return(y[, bands])
+                                else
+                                    return(NA)
+                                 })
+    return(x)
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 # Split an image into chunks.
 #
 # @param in_file A character. Path to a file.
@@ -337,8 +452,8 @@ split_image <- function(in_file, xsize = 256, ysize = 256, out_dir = tempdir()){
 }
 
 
-#------------------------------------------------------------------------------
-# Helper functions.
+
+#--- Helper functions ----
 
 
 # Helper for masking in parallel.
@@ -347,6 +462,7 @@ split_image <- function(in_file, xsize = 256, ysize = 256, out_dir = tempdir()){
 # @param sentinel_tb A tibble describing Sentienl-2 images.
 # @return            A character. Path to the masked image.
 helper_mask <- function(id_row, sentinel_tb, out_dir = tempdir()){
+    .Deprecated("helper_mask2")
     stopifnot(id_row %in% 1:nrow(sentinel_tb))
     in_files <- sentinel_tb %>%
         dplyr::slice(id_row) %>%
@@ -358,6 +474,12 @@ helper_mask <- function(id_row, sentinel_tb, out_dir = tempdir()){
              return()
 }
 
+# Helper for masking in parallel.
+#
+# @param id_row      A length-one integer. A row number in sentinel_tb.
+# @param sentinel_tb A tibble describing Sentienl-2 images.
+# @param var         A name of a variable (column) in sentinel_tb.
+# @return            A character. Path to the masked image.
 helper_mask2 <- function(id_row, img_tb, var, out_dir = tempdir()){
     stopifnot(id_row %in% 1:nrow(sentinel_tb))
     var <- dplyr::enquo(var)
@@ -495,12 +617,15 @@ helper_pile_raw <- function(.x, out_dir){
 # @param vrt_file A lenght-one character. Path to a VRT file of a Sentinel-2 image.
 # @return         A tibble.
 helper_vi <- function(vrt_file){
-    vi_names <- c("evi2", "gemi", "mtvi", "ndvi", "ndwi", "osavi", "rdvi", "savi", "pc1rgbnir", "pc2rgbnir")
+    #vi_names <- c("evi", "ndmi", "ndvi", "savi", "mtvi", "osavi", "rdvi")
+    #vi_names <- c("evi", "ndmi", "ndvi", "savi")
+    vi_names <- c("evi", "ndmi")
     out_files <- vi_names %>%
         paste0('_') %>%
         lapply(tempfile, fileext = ".tif") %>%
         magrittr::set_names(vi_names)
     for(vi in vi_names) {
+        print(vi)
         compute_vi_sentinel(vrt_file, out_file = out_files[[vi]],
                             index_name = vi)
     }
@@ -517,12 +642,125 @@ helper_vi <- function(vrt_file){
 # @param B04 A lenght-one character. Path to a file of Sentinel-2 band.
 # @param B08 A lenght-one character. Path to a file of Sentinel-2 band.
 # @return    A character. Path to a VRT file.
-helper_vrt_vi <- function(B02, B03, B04, B08){
-    c(B02, B03, B04, B08) %>%
-        gdalcmdline::gdal_build_vrt(out_filename = tempfile(pattern = "sentinel_b2348_",
+helper_vrt_vi <- function(B02, B03, B04, B08, B11){
+    c(B02, B03, B04, B08, B11) %>%
+        gdalcmdline::gdal_build_vrt(out_filename = tempfile(pattern = "sentinel_b2-3-4-8-11_",
                                                             fileext = ".vrt"),
                                     resolution = "highest", separate = TRUE,
                                     vrtnodata = -9999) %>%
+        return()
+}
+
+
+# Run PCA in sample time series using a subset of the available bands and labels.
+do_pca <- function(selected_bands, selected_labels, samples_tb){
+    samples_tb %>%
+        dplyr::filter(label %in% selected_labels) %>%
+        select_bands(selected_bands) %>%
+        ensurer::ensure_that(nrow(.) > 0, err_desc = "Samples are missing") %>%
+        dplyr::select(label, time_series) %>%
+        tidyr::unnest(time_series) %>%
+        dplyr::select(-label, -Index) %>%
+        stats::prcomp(center = TRUE, scale = rep(10000, length(selected_bands))) %>%
+        return()
+}
+
+# Get the rotation matrix from a PCA object.
+get_pca_rotation <- function(pca, components = 1:2){
+    pca %>%
+        magrittr::extract2("rotation") %>%
+        magrittr::extract(, components) %>%
+        return()
+}
+
+# Compute and extract the PCA bands in a sits tibble
+get_pca_bands <- function(pca_rotation, samples_tb){
+    samples_tb <- samples_tb %>%
+        dplyr::mutate(time_series = purrr::map(time_series, compute_pca,
+                                               pca_matrix = pca_rotation)) %>%
+        sits::sits_select_bands(PC1, PC2)
+}
+
+# Filter a sits tibble.
+filter_sits_tibble <- function(selected_bands, selected_labels, samples_tb){
+    samples_tb %>%
+        dplyr::filter(label %in% selected_labels) %>%
+        select_bands(selected_bands) %>%
+        ensurer::ensure_that(nrow(.) > 0, err_desc = "Samples are missing") %>%
+        dplyr::select(label, time_series) %>%
+        tidyr::unnest(time_series) %>%
+        return()
+}
+
+# Compute the PCA given a time series tibble and a matrix of PCA rotations.
+#
+# @param .data      A tibble.
+# @param pca_matrix A matrix.  The rotations matrix resulting from a PCA analysis using stats::prcomp
+# @return           A tibble. .data plus the principal components.
+compute_pca <- function(.data, pca_matrix) {
+    observation_mt <- .data %>%
+        dplyr::select(tidyselect::starts_with(rownames(pca_matrix))) %>%
+        as.matrix()
+    if (ncol(observation_mt) != nrow(pca_matrix)) {
+        warning(sprintf("non-conformable arguments: %s",
+                        paste(rownames(pca_matrix), collapse = " ")))
+        return(NA)
+    }
+    .data %>%
+        dplyr::bind_cols(tibble::as_tibble(observation_mt %*% pca_matrix)) %>%
+        return()
+}
+
+
+# Pile images into a VRT.
+#
+# @param .data    A tibble.
+# @param out_dir  A length-one charater. Path to a directory.
+# @param cmd      A length-one charater. Pattern used for calling gdalbuildvrt i.e. cmd = "/usr/bin/gdalbuildvrt -separate %s %s"
+# @param var_file A name of column in .data containing the paths to the files to pile.
+# @return         A tibble. .data plus the principal components.
+helper_pile_vrt <- function(.data, out_dir, cmd, var_file){
+    var_file <- rlang::enquo(var_file)
+    file_tb <- .data %>%
+        ensurer::ensure_that(nrow(.) == 36, err_desc = "Missing images!") %>%
+        dplyr::arrange(img_date)
+    out_file <- file_tb %>%
+        dplyr::slice(1) %>%
+        dplyr::select(mission, level, orbit, tile, acquisition, band, resolution) %>%
+        unlist() %>%
+        paste(collapse = '_') %>%
+        paste0(".vrt")
+    out_file <- file.path(out_dir, out_file)
+    file_vec <- unlist(dplyr::pull(file_tb, !!var_file))
+    cmd <- sprintf(cmd,
+                   out_file, paste(file_vec, collapse  = ' '))
+    system(cmd)
+    file_tb %>%
+        dplyr::slice(1) %>%
+        #dplyr::select(-safe_path, -file_path, -acquisition, -processing) %>%
+        dplyr::select(-tidyselect::any_of("safe_path", "file_path", "acquisition", "processing")) %>%
+        dplyr::mutate(brick_file = out_file) %>%
+        return()
+}
+
+# Build a tibble of the resutls of the classification.
+get_results <- function(in_dir){
+
+    in_dir %>%
+        list.files(pattern = "[.]tif", recursive = TRUE, full.names = TRUE) %>%
+        tibble::enframe(name = NULL) %>%
+        dplyr::rename(file_path = value) %>%
+        dplyr::mutate(file_name = basename(file_path),
+                      file_dir  = dirname(file_path),
+                      used_method = basename(file_dir),
+                      used_bands  = basename(dirname(file_dir))) %>%
+        dplyr::mutate(img_type = dplyr::case_when(stringr::str_detect(file_name, pattern = "_probs_class")                ~ "classification",
+                                                  stringr::str_detect(file_name, pattern = "_probs_")                     ~ "probability",
+                                                  stringr::str_detect(file_name, pattern = "postprocessing_first_masked") ~ "postprocessing_first_masked",
+                                                  stringr::str_detect(file_name, pattern = "postprocessing_last_masked")  ~ "postprocessing_last_masked",
+                                                  stringr::str_detect(file_name, pattern = "postprocessing_first")        ~ "postprocessing_first",
+                                                  stringr::str_detect(file_name, pattern = "postprocessing_last")         ~ "postprocessing_last")) %>%
+        dplyr::select(-file_name, -file_dir) %>%
         return()
 }
 
