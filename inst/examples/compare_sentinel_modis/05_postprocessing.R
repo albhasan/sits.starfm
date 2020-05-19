@@ -3,16 +3,7 @@
 
 library(dplyr)
 
-postprocessing <- function(partial_class, full_class, rules, partial = "first"){
-    stopifnot(partial %in% c("first", "last"))
-    out_file <- full_class %>%
-        dirname() %>%
-        file.path(paste0("postprocessing_", partial, ".tif"))
-    cmd <- sprintf("gdal_calc.py -A %s -B %s --outfile=%s --calc='(%s).astype(int16)' --NoDataValue=-9999 --type='Int16' --creation-option='COMPRESS=LZW' --creation-option='BIGTIFF=YES'",
-                   partial_class, full_class, out_file, rules)
-    system(cmd)
-    return(out_file)
-}
+source("/home/alber/Documents/ghProjects/sits.starfm/inst/examples/compare_sentinel_modis/util.R")
 
 # Rules to apply during pros-processing
 # The classification of 2 labels use 1-Forest, 2-Pasture.
