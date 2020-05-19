@@ -75,8 +75,8 @@ band_combination <- list()
 #band_combination[[5]] <- c("blue", "green", "ndvi")
 #band_combination[[6]] <- c("ndvi")
 band_combination[[1]] <- c("blue", "bnir", "green", "nnir", "red", "swir1", "swir2")
-band_combination[[2]] <- c("evi", "ndvi", "savi")
-band_combination[[3]] <- c("evi","ndmi", "ndvi")
+band_combination[[2]] <- c("evi","ndmi", "ndvi")
+band_combination[[3]] <- c("evi", "ndvi", "savi")
 
 samples_file <- "/home/alber/Documents/data/experiments/prodes_reproduction/papers/deforestation/data/samples/approx_samples_tb_v2.rds"
 brick_dir <- "/home/alber/Documents/data/experiments/prodes_reproduction/data/raster/brick_sentinel2_interpolated/approx"
@@ -121,15 +121,6 @@ for(used_bands in band_combination){
     slice_n_rows <- 2
     result_base_dir <- paste0("/home/alber/Documents/data/experiments/prodes_reproduction/papers/deforestation/results5/approx_", slice_where, "_v2")
     brick_dir <- paste0("/disks/d3/brick_sentinel2_interpolated/", paste(slice_where, slice_n_rows, sep = "_"))
-    #-------------------
-    slice_n <- function(x, n = 2, where = "first"){
-        if(where == "first"){
-            return(dplyr::slice(x, 1:n))
-        }else if (where == "last"){
-            return(dplyr::slice(x, (nrow(x) - (n - 1)):nrow(x)))
-        }
-        stop("Unknown option!")
-    }
     #-------------------
     sits_method <- sits::sits_rfor(num_trees = 1000)
     out_dir <- file.path(result_base_dir, paste(used_bands, collapse = '-'),
