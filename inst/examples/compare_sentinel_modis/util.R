@@ -743,7 +743,10 @@ helper_pile_vrt <- function(.data, out_dir, cmd, var_file){
         return()
 }
 
-# Build a tibble of the resutls of the classification.
+# Build a tibble of metadata of the classification maps.
+#
+# @param in_dir A length-one character. Path to a directory with classification results.
+# @return       A tibble.
 get_results <- function(in_dir){
 
     in_dir %>%
@@ -764,3 +767,63 @@ get_results <- function(in_dir){
         return()
 }
 
+
+# Slice n of the first or last rows in the given tibble.
+#
+# @param x     A tibble.
+# @param n     A numeric. The number of rows to slice.
+# @param where A length-one charater. Indicate from where to take the rows; either the first or the last.
+# @return      A tibble.
+slice_n <- function(x, n = 2, where = "first"){
+    if(where == "first"){
+        return(dplyr::slice(x, 1:n))
+    }else if (where == "last"){
+        return(dplyr::slice(x, (nrow(x) - (n - 1)):nrow(x)))
+    }
+    stop("Unknown option!")
+}
+
+
+# Add coordinates as columns to an SF object.
+#
+# @param point_sf A sf object.
+# @return         A sf object.
+add_coords <- function(point_sf){
+         xy <- point_sf %>%
+             sf::st_coordinates() %>%
+             magrittr::set_colnames(c("longitude", "latitude")) %>%
+             tidyr::as_tibble()
+         point_sf %>%
+             dplyr::bind_cols(xy) %>%
+             return()
+}
+
+
+# Apply postprocessing rules to join the partial classification of the brick (either using the first or last images) to the full classification of the brick.
+#
+# @param partial_class A length-one character. Path to a raster of a classification of the first or last images in a brick.
+# @param full_class    A length-one character. Path to a raster of a classification of a full brick.
+# @param rules         A length-one character. Rules to be applied to partial_class and full_class using gdal_calc syntax.
+# @param partial       A length-one character. Indicate if either the first or last part of the brick is bein postprocesssed.
+# @param out_dir       A length-one character. Path to a dir to store the results.
+# @return              A path to the results.
+postprocessing <- function(partial_class, full_class, rules, partial = "first",
+                           out_dir = NULL){
+    stopifnot(partial %in% c("first", "last"))
+    if (is.null(out_dir)) {
+        out_file <- full_class %>%
+            dirname() %>%
+            file.path(paste0("postprocessing_", partial, ".tif"))
+    }else{
+        out_file <- out_dir %>%
+            file.path(paste0("postprocessing_", partial, ".tif"))
+    }
+    if(!dir.exists(out_dir)){
+        warning(sprintf("Creating dir %s", out_dir))
+        dir.create(out_dir, recursive = TRUE)
+    }
+    cmd <- sprintf("/usr/bin/gdal_calc.py -A %s -B %s --outfile=%s --calc='(%s).astype(int16)' --NoDataValue=-9999 --type='Int16' --creation-option='COMPRESS=LZW' --creation-option='BIGTIFF=YES'",
+                   partial_class, full_class, out_file, rules)
+    system(cmd)
+    return(out_file)
+}
