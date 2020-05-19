@@ -21,8 +21,8 @@ used_combinations <- c(
 samples_tb <- approx_samples_file %>%
     readRDS()
 class(samples_tb) <- class(cerrado_2classes)
-samples_tb %>% 
-    sits::sits_select_bands(evi, ndmi, ndvi, savi) %>% 
+samples_tb %>%
+    #sits::sits_select_bands(evi, ndmi, ndvi, savi) %>%
     plot()
 
 # get a tibble with the combinatory of bands
@@ -88,11 +88,11 @@ kfold_ls <- readRDS(file = "/home/alber/Documents/ghProjects/sits.starfm/inst/ex
 # Helper for box plotting.
 plot_accuracies <- function(.data, var_name, my_xmin = 0.825){
     var_name <- rlang::enquo(var_name)
-    x_label <- var_name %>% 
-        rlang::as_label() %>% 
-        tools::toTitleCase() %>% 
-        stringr::str_replace('_', ' ') %>% 
-        stringr::str_replace('ua', 'User Accuracy') %>% 
+    x_label <- var_name %>%
+        rlang::as_label() %>%
+        tools::toTitleCase() %>%
+        stringr::str_replace('_', ' ') %>%
+        stringr::str_replace('ua', 'User Accuracy') %>%
         stringr::str_replace('pa', 'Producer Accuracy')
     .data %>%
         dplyr::select(used_bands, !!var_name) %>%
@@ -109,8 +109,8 @@ plot_accuracies <- function(.data, var_name, my_xmin = 0.825){
 kfold_ls %>%
     dplyr::bind_rows() %>%
     #dplyr::filter(stringr::str_detect(used_bands, ',')) %>%
-    dplyr::filter(used_bands %in% c("evi,ndmi,ndvi", 
-                                    "blue,bnir,green,nnir,red,swir1,swir2")) %>% 
+    dplyr::filter(used_bands %in% c("evi,ndmi,ndvi",
+                                    "blue,bnir,green,nnir,red,swir1,swir2")) %>%
     (function(.data){
         #my_xmin = 0.825
         my_xmin = 0.9
