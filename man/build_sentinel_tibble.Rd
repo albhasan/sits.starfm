@@ -12,8 +12,6 @@ build_sentinel_tibble(in_dir, from = NULL, to = NULL)
 \item{from}{A length-one character. The start date.}
 
 \item{to}{A length-one character. The end date.}
-
-\item{pattern}{A length-one character. A pattern to filter the image files by name.}
 }
 \value{
 A tibble
