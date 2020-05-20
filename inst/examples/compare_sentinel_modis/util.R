@@ -737,7 +737,6 @@ helper_pile_vrt <- function(.data, out_dir, cmd, var_file){
     system(cmd)
     file_tb %>%
         dplyr::slice(1) %>%
-        #dplyr::select(-safe_path, -file_path, -acquisition, -processing) %>%
         dplyr::select(-tidyselect::any_of("safe_path", "file_path", "acquisition", "processing")) %>%
         dplyr::mutate(brick_file = out_file) %>%
         return()

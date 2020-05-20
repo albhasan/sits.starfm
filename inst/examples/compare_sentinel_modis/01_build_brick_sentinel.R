@@ -1,6 +1,7 @@
 #-------------------------------------------------------------------------------
 # BUILD BRICKS SENTINEL OF VEGETATION INDEXES
 #-------------------------------------------------------------------------------
+.Deprecater("Use bash scripts.")
 
 library(dplyr)
 library(parallel)
@@ -50,6 +51,19 @@ sentinel_tb <- sentinel_l2a_dir %>%
     dplyr::filter(!band %in% c("B02", "B03", "B04", "B08") | !resolution =="20m") %>%
     ensurer::ensure_that(nrow(.) > 0, err_des = "Images not found!") %>%
     dplyr::left_join(fmask_tb, by = c("tile", "img_date"))
+
+# Pile the images into RAW BRICKS.
+porous_brick_tb <- sentinel_tb %>%
+    dplyr::group_by(mission, level, baseline,
+                    orbit, pyear, band, resolution) %>%
+    dplyr::group_map(~ helper_pile_vrt(.x, out_dir = out_porous_dir,
+                                       cmd = "/usr/bin/gdalbuildvrt -separate %s %s",
+                                       var_file = file_path),
+                     keep = TRUE) %>%
+    dplyr::bind_rows()
+
+
+
 
 # Mask the Sentinel-2 images.
 sentinel_tb[["img_masked"]] <- parallel::mclapply(1:nrow(sentinel_tb),
