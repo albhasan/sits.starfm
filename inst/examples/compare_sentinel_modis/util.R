@@ -75,6 +75,7 @@ combine_n_bands <- function(n_bands, available_bands){
 # @param out_file A lenght-one character. Short name of a index.
 # @return    A character. A temporal file.
 compute_vi_sentinel <- function(vrt_file, out_file, index_name){
+    .Deprecated("Use bash scripts instead.")
     # VRT file:
     # - B02 blue   1
     # - B03 green  2
@@ -155,6 +156,7 @@ distinct_landsat <- function(x){
 # @param out_pattern A char
 # @return
 filter_and_pile <- function(band_name, img_tb, out_pattern){
+    .Deprecated("Use bash scripts instead.")
     band_tb <- img_tb %>%
         dplyr::filter(band == band_name) %>%
         dplyr::arrange(acquisition)
@@ -292,6 +294,7 @@ get_brick_md <- function(in_dir){
 # @param out_dir    A leghth-one character. Path to a directory.
 # @return           A character. Path to a file in out_dir.
 mask_sentinel <- function(file_path, fmask_path, out_dir) {
+    .Deprecated("Use bash scripts instead.")
     out_file <- file_path %>%
         basename() %>%
         #tools::file_path_sans_ext() %>%
@@ -320,6 +323,7 @@ mask_sentinel <- function(file_path, fmask_path, out_dir) {
 pile_files <- function (file_paths, out_fn, gdal_format = "GTiff",
                         no_data = -9999, data_type = "Int16",
                         gdal_options = c("TILED=YES", "COMPRESS=LZW", "BIGTIFF=YES")){
+    .Deprecated("Use bash scripts instead.")
     gdalcmdline::gdal_merge(input_files = file_paths, out_filename = out_fn,
                             ot = data_type, separate = TRUE, of = gdal_format,
                             creation_option = gdal_options, init = no_data,
@@ -341,6 +345,7 @@ pile_files <- function (file_paths, out_fn, gdal_format = "GTiff",
 pile_sentinel_images <- function(mission, level, orbit, tile, pyear, sentinel_tb,
                         field_name,
                         out_dir){
+    .Deprecated("Use bash scripts instead.")
     #field_name <- rlang::enquo(field_name)
     img_tb <- sentinel_tb %>%
         dplyr::filter(mission == mission, level == level, tile == tile,
@@ -481,6 +486,7 @@ helper_mask <- function(id_row, sentinel_tb, out_dir = tempdir()){
 # @param var         A name of a variable (column) in sentinel_tb.
 # @return            A character. Path to the masked image.
 helper_mask2 <- function(id_row, img_tb, var, out_dir = tempdir()){
+    .Deprecated("Use bash scripts instead.")
     stopifnot(id_row %in% 1:nrow(sentinel_tb))
     var <- dplyr::enquo(var)
     in_files <- img_tb %>%
@@ -534,6 +540,7 @@ helper_pile <- function(x, out_dir){
 # @param out_dir A length-one character. Path to a directory.
 # @return        A tibble.
 helper_pile2 <- function(.x, out_dir){
+    .Deprecated("Use bash scripts instead.")
     file_tb <- .x %>%
         ensurer::ensure_that(nrow(.) == 36, err_desc = "Missing images!") %>%
         dplyr::arrange(img_date)
@@ -563,6 +570,7 @@ helper_pile2 <- function(.x, out_dir){
 # @param out_dir A length-one character. Path to a directory.
 # @return        A tibble.
 helper_pile_masked <- function(.x, out_dir){
+    .Deprecated("Use bash scripts instead.")
     file_tb <- .x %>%
         ensurer::ensure_that(nrow(.) == 36, err_desc = "Missing images!") %>%
         dplyr::arrange(img_date)
@@ -617,6 +625,7 @@ helper_pile_raw <- function(.x, out_dir){
 # @param vrt_file A lenght-one character. Path to a VRT file of a Sentinel-2 image.
 # @return         A tibble.
 helper_vi <- function(vrt_file){
+    .Deprecated("Use bash scripts instead.")
     #vi_names <- c("evi", "ndmi", "ndvi", "savi", "mtvi", "osavi", "rdvi")
     #vi_names <- c("evi", "ndmi", "ndvi", "savi")
     vi_names <- c("evi", "ndmi")
@@ -643,6 +652,7 @@ helper_vi <- function(vrt_file){
 # @param B08 A lenght-one character. Path to a file of Sentinel-2 band.
 # @return    A character. Path to a VRT file.
 helper_vrt_vi <- function(B02, B03, B04, B08, B11){
+    .Deprecated("Use bash scripts instead.")
     c(B02, B03, B04, B08, B11) %>%
         gdalcmdline::gdal_build_vrt(out_filename = tempfile(pattern = "sentinel_b2-3-4-8-11_",
                                                             fileext = ".vrt"),
@@ -720,6 +730,7 @@ compute_pca <- function(.data, pca_matrix) {
 # @param var_file A name of column in .data containing the paths to the files to pile.
 # @return         A tibble. .data plus the principal components.
 helper_pile_vrt <- function(.data, out_dir, cmd, var_file){
+    .Deprecater("Use bash scripts instead.")
     var_file <- rlang::enquo(var_file)
     file_tb <- .data %>%
         ensurer::ensure_that(nrow(.) == 36, err_desc = "Missing images!") %>%
