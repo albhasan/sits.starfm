@@ -1,7 +1,7 @@
 #-------------------------------------------------------------------------------
 # BUILD BRICKS SENTINEL OF VEGETATION INDEXES
 #-------------------------------------------------------------------------------
-.Deprecater("Use bash scripts.")
+.Deprecated("Use bash scripts.")
 
 library(dplyr)
 library(parallel)
