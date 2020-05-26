@@ -7,10 +7,10 @@ clean_ts <- function(sits_tb, report = FALSE){
     sits_tb %>%
         sits::sits_prune() %>%
         tidyr::drop_na() %>%
-        dplyr::mutate(has_na    = purrr::map_lgl(time_series, function(x){return(any(is.na(x)))}),
-                      has_null  = purrr::map_lgl(time_series, function(x){return(any(is.null(x)))}),
+        dplyr::mutate(has_na    = purrr::map_int(time_series, function(x){return(sum(is.na(x)))}),
+                      has_null  = purrr::map_int(time_series, function(x){return(sum(is.null(x), na.rm = TRUE))}),
+                      has_overflow  = purrr::map_int(time_series, function(x){return(sum(sum(as.matrix(x[,2:ncol(x)]) < -1, na.rm = TRUE), sum(as.matrix(x[,2:ncol(x)]) > 1, na.rm = TRUE)))}),
                       time_mean = purrr::map_dbl(time_series, function(x){return(mean(x[[1]]))}),
-                      overflow  = purrr::map_dbl(time_series, function(x){return(any(any(as.matrix(x[,2:ncol(x)]) < -1), any(as.matrix(x[,2:ncol(x)]) > 1)))}),
                       n_cols    = purrr::map_int(time_series, ncol),
                       n_rows    = purrr::map_int(time_series, nrow)) %>%
         (function(.data){
@@ -224,6 +224,7 @@ get_img_dimensions <- function(in_file) {
 # @param in_dir          A length-one character. Path to a directory.
 # @return                A tibble.
 get_brick <- function(in_dir){
+    .Deprecated("")
     in_dir %>%
         get_brick_md() %>%
         dplyr::arrange(tile, img_date, band) %>%
@@ -270,18 +271,19 @@ get_brick_md <- function(in_dir){
         tibble::enframe(name = NULL) %>%
         dplyr::rename(file_path = value) %>%
         dplyr::mutate(file_name = tools::file_path_sans_ext(basename(file_path))) %>%
+        dplyr::mutate(file_ext = tools::file_ext(basename(file_path))) %>%
         tidyr::separate(col = file_name, into = c("mission", "level", "orbit",
                                                   "tile", "img_date", "file_band",
-                                                  "band_complement",
+                                                  "brick_type",
                                                   "resolution"),
                         sep = '_', extra = "drop", fill = "right") %>%
-        dplyr::mutate(resolution = ifelse(band_complement %in% c("10m", "20m", "60m"),
-                                          band_complement, resolution),
-                      band_complement = ifelse(band_complement %in% c("10m", "20m", "60m"),
-                                               "", band_complement),
+        dplyr::mutate(resolution = ifelse(brick_type %in% c("10m", "20m", "60m"),
+                                          brick_type, resolution),
+                      brick_type = ifelse(brick_type %in% c("10m", "20m", "60m"),
+                                               "", brick_type),
+                      brick_type = ifelse(brick_type == "", "raw", brick_type),
                       img_date = lubridate::as_date(stringr::str_sub(img_date,
                                                                      1, 8))) %>%
-        dplyr::select(-band_complement) %>%
         dplyr::left_join(file_band_names, by = "file_band") %>%
         return()
 }
