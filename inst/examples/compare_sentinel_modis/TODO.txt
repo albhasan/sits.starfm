@@ -1,0 +1,23 @@
+IMPROVE THE FIRST CLASSIFICATION.
+
+DONE: Use version 4 of the validation samples.
+DONE: Get time series of the new samples.
+DONE: Recode Deforestation as Forest as it was at the beginning of the time period.
+DONE: Filter out Water. 
+DONE: *** Cross the samples: Use ALL BANDS for training INDECES and INDECES for training ALL BANDS ***
+DONE: Run the classification using 4 labels:
+- Forest
+- Non-Forest
+- Pasture
+- Natural non-forest
+
+Join the last 3 labels (Non-Forest, Pasture, Natural Non-Forest) into Non-Forest before postprocessing.
+Change the postprocessing rules to:
+1) Forest     + Pasture       = Deforestatuion
+2) Forest     + Forest        = Forest
+3) Forest     + Deforestation = Deforestation
+4) Non-Forest + Pasture       = Pasture
+5) Non-Forest + Forest        = Forest
+6) Non-Forest + Deforestation = Non-Forest
+
+Compute the confusion matrix.
