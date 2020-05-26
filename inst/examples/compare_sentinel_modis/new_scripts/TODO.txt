@@ -1,23 +1,148 @@
-IMPROVE THE FIRST CLASSIFICATION.
+DONE - Build mini-bricks using (minX, minY, maxX, maxY) = (-65.10175 -10.10455 -65.02418 -10.03270)
+DONE - Create an envelope shapefile and send it to Michelle (directory minibrick in esensing's dropbox)
+- Change the samples' names to samples_A (all bands), samples_B (indexes)
+- Too few samples of deforestation
 
-DONE: Use version 4 of the validation samples.
-DONE: Get time series of the new samples.
-DONE: Recode Deforestation as Forest as it was at the beginning of the time period.
-DONE: Filter out Water. 
-DONE: *** Cross the samples: Use ALL BANDS for training INDECES and INDECES for training ALL BANDS ***
-DONE: Run the classification using 4 labels:
-- Forest
-- Non-Forest
-- Pasture
-- Natural non-forest
+Samples
+- A (all bands)
+- B (indixes)
+- C - Take samples on each label from joined samples A & B
+- - Forest         60
+- - Deforestation  60
+- - Pasture        20
+- - Non-Forest     20
+- - Nat_Non-Forest 20
 
-Join the last 3 labels (Non-Forest, Pasture, Natural Non-Forest) into Non-Forest before postprocessing.
-Change the postprocessing rules to:
-1) Forest     + Pasture       = Deforestatuion
-2) Forest     + Forest        = Forest
-3) Forest     + Deforestation = Deforestation
-4) Non-Forest + Pasture       = Pasture
-5) Non-Forest + Forest        = Forest
-6) Non-Forest + Deforestation = Non-Forest
+Bricks
+- Approx
+- Raw
 
-Compute the confusion matrix.
+Label
+- 5 class 
+- 3 class. Recode:
+- - Forest        = Forest
+- - Deforestation = Deforestation
+- - Non_Forest    = Pasture + Non-Forest + Nat_Non-Forest
+
+Bands
+- Indices
+- All bands
+
+Classification 11 
+- Bands      All bands
+- Training   Samples B
+- Labels     5 class
+- Brick      Approx
+- Validation Samples A
+
+Classification 12
+- Bands      All bands
+- Training   Samples B
+- Labels     3 class
+- Brick      Approx
+- Validation Samples A
+
+Classification 13
+- Bands      All bands
+- Training   Samples B
+- Labels     5 class
+- Brick      Raw
+- Validation Samples A
+
+Classification 14
+- Bands      All bands
+- Training   Samples B
+- Labels     3 class
+- Brick      Raw
+- Validation Samples A
+
+#-----------------------
+
+Classification 21 
+- Bands      Indeces
+- Training   Samples A
+- Labels     5 class
+- Brick      Approx
+- Validation Samples B
+
+Classification 22
+- Bands      Indeces
+- Training   Samples A
+- Labels     3 class
+- Brick      Approx
+- Validation Samples B
+
+Classification 23
+- Bands      Indices
+- Training   Samples A
+- Labels     5 class
+- Brick      Raw
+- Validation Samples B
+
+Classification 24
+- Bands      Indices
+- Training   Samples A
+- Labels     3 class
+- Brick      Raw
+- Validation Samples B
+
+#-----------------------
+
+Classification 31
+- Bands      All bands
+- Training   Samples C
+- Labels     5 class
+- Brick      Approx
+- Validation NA
+
+Classification 32
+- Bands      All bands
+- Training   Samples C
+- Labels     3 class
+- Brick      Approx
+- Validation NA
+
+Classification 33
+- Bands      All bands
+- Training   Samples c
+- Labels     5 class
+- Brick      Raw
+- Validation NA
+
+Classification 34
+- Bands      All bands
+- Training   Samples C
+- Labels     3 class
+- Brick      Raw
+- Validation NA
+
+#-----------------------
+
+Classification 41
+- Bands      Indices
+- Training   Samples C
+- Labels     5 class
+- Brick      Approx
+- Validation NA
+
+Classification 42
+- Bands      Indices
+- Training   Samples C
+- Labels     3 class
+- Brick      Approx
+- Validation NA
+
+Classification 43
+- Bands      Indices
+- Training   Samples c
+- Labels     5 class
+- Brick      Raw
+- Validation NA
+
+Classification 44
+- Bands      Indices
+- Training   Samples C
+- Labels     3 class
+- Brick      Raw
+- Validation NA
+
