@@ -7,29 +7,54 @@ suppressMessages(library(dplyr))
 suppressMessages(library(raster))
 suppressMessages(library(sits))
 
+#---- Parameters ----
+
 args = commandArgs(trailingOnly = TRUE)
-if (length(args) != 1) {
-    stop("This script takes a parameters: An input file (RDS) of time series of samples.",  call. = FALSE)
+if (length(args) != 7) {
+    stop("This script takes a parameters:
+         A brick type [approx|raw],
+         a brick directory,
+         a samples file (RDS of a sits tibble with time series),
+         a comma-separated list of labels,
+         a comma-separated list of bands,
+         a version number,
+         a base directory for storing the results.",  call. = FALSE)
 }
 
-samples_file <- args[[1]]
+b_type         <-                                args[[1]]
+brick_dir      <-                                args[[2]]
+samples_file   <-                                args[[3]]
+used_labels    <- sort(unlist(stringr::str_split(args[[4]], ',')))
+used_bands     <- sort(unlist(stringr::str_split(args[[5]], ',')))
+version_number <-                                args[[6]]
+out_base_dir   <-                                args[[7]]
+
+#b_type         <- "approx"
+#brick_dir      <- "/disks/d3/brick_sentinel2/mini"
+#samples_file   <- "/home/alber/Documents/data/experiments/prodes_reproduction/papers/deforestation/data/validation/samples_A_approx.rds"
+#used_labels    <- c("Deforestation", "Forest", "Pasture")
+#used_bands     <- c("blue", "bnir", "green", "nnir", "red", "swir1", "swir2")
+#version_number <- "006"
+#out_base_dir   <- "/home/alber/Documents/data/experiments/prodes_reproduction/papers/deforestation/results6/"
+
+stopifnot(b_type %in% c("approx", "raw"))
+stopifnot(dir.exists(brick_dir))
+stopifnot(file.exists(samples_file))
+#stopifnot(dir.exists(out_base_dir))
+
+print(b_type)
+print(brick_dir)
+print(samples_file)
+print(used_labels)
+print(used_bands)
+print(out_base_dir)
+
+#---- Setup ----
 
 tmp_directory <- "/disks/d3/tmp"
 dir.create(file.path(tmp_directory, "masked"))
 raster::rasterOptions(tmpdir = tmp_directory)
 raster::tmpDir()
-
-source("/home/alber/Documents/ghProjects/sits.starfm/inst/examples/compare_sentinel_modis/util.R")
-
-#---- Setup ----
-
-band_combination <- list()
-band_combination[[1]] <- c("blue", "bnir", "green", "nnir", "red", "swir1", "swir2")
-band_combination[[2]] <- c("evi","ndmi", "ndvi")
-
-brick_dir <- "/home/alber/Documents/data/experiments/prodes_reproduction/data/raster/brick_sentinel2_raw"
-b_type <- "approx" # Brick type.
-version_number <- "006"
 
 out_file_template <- samples_file %>%
     basename() %>%
@@ -37,21 +62,20 @@ out_file_template <- samples_file %>%
 
 #---- Util ----
 
+source("/home/alber/Documents/ghProjects/sits.starfm/inst/examples/compare_sentinel_modis/util.R")
+
 # Helper for doing the classification.
 classify <- function(used_bands, used_labels, brick_dir, samples_file,
                      sits_method, out_dir, version_number){
     samples_tb <- samples_file %>%
         readRDS() %>%
-        dplyr::mutate(label = dplyr::recode(label,
-                                            Deforestatio = "deforestation",
-                                            NatNonForest = "natural non-forest",
-                                            NonForest    = "non-forest")) %>%
-        dplyr::mutate(label = tools::toTitleCase(label)) %>%
         select_bands(used_bands) %>%
         dplyr::filter(label %in% used_labels) %>%
+        ensurer::ensure_that(nrow(.) > 0, err_desc = "Samples missing") %>%
         ensurer::ensure_that(length(unique(.$label)) == length(used_labels),
-                             err_desc = "Missing labels!") %>%
-        ensurer::ensure_that(nrow(.) > 0, err_desc = "Samples missing")
+                             err_desc = "The samples are missing labels!") %>%
+        ensurer::ensure_that(length(sits::sits_bands(.)) == length(used_bands),
+                             err_desc = "The samples are missing bands!")
     brick_tb <- brick_dir %>%
         get_brick_md() %>%
         dplyr::filter(brick_type == b_type, resolution == "10m") %>%
@@ -93,34 +117,23 @@ classify <- function(used_bands, used_labels, brick_dir, samples_file,
                                                           smoothing = "bayesian",
                                                           output_dir = out_dir,
                                                           version = version_number)
-    return(list(probability_map, classification_map))
+    invisible(list(probability_map, classification_map))
 }
 
 #---- Classify using Random Forest ----
 
-res_rf_1000 <- list()
-for(used_bands in band_combination){
-    used_labels <- c("Deforestation", "Forest", "Pasture")
-    # TODO: leave all the labels, exectp for water
-    stop("TODO")
-    sits_method <- NULL
-    out_dir <- NULL
-    print("--------------------------------------------------------------------------------")
-    print(sprintf("Using bands: %s", paste(used_bands, collapse = '-')))
-    print(sprintf("Brick images: %s", brick_dir))
-    sits_method <- sits::sits_rfor(num_trees = 1000)
-    out_dir <- file.path(paste0("/home/alber/Documents/data/experiments/prodes_reproduction/papers/deforestation/results6/",
-                                paste(b_type, out_file_template, sep = "-")),
-                         paste(used_bands, collapse = '-'),
-                         "random-forest_1000/")
-    if (!dir.exists(out_dir))
-        dir.create(out_dir, recursive = TRUE)
-    print(sprintf("Saving results to: %s", out_dir))
-    res_rf_1000[[paste(used_bands, collapse = '-')]] <- classify(used_bands,
-                                                                 used_labels,
-                                                                 brick_dir,
-                                                                 samples_file,
-                                                                 sits_method,
-                                                                 out_dir,
-                                                                 version_number)
-}
+out_dir <- file.path(out_base_dir,
+                     paste(b_type, out_file_template, sep = "-"),
+                     paste(used_bands, collapse = '-'),
+                     "random-forest_1000/")
+if (!dir.exists(out_dir))
+    dir.create(out_dir, recursive = TRUE)
+print(sprintf("Saving results to: %s", out_dir))
+
+classify(used_bands,
+         used_labels,
+         brick_dir,
+         samples_file,
+         sits_method = sits::sits_rfor(num_trees = 1000) ,
+         out_dir,
+         version_number)
