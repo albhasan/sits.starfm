@@ -5,7 +5,7 @@ suppressMessages(library(sits))
 
 args <- commandArgs(trailingOnly = TRUE)
 if (length(args) != 3) {
-      stop("This script takes 2 parameters: An input file (CSV), a type of brick, and an output file (RDS).",
+      stop("This script takes 3 parameters: An input file (CSV), a type of brick, and an output file (RDS).",
            call. = FALSE)
 }
 
