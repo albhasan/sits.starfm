@@ -22,6 +22,12 @@ samples_C_approx="/home/alber/Documents/data/experiments/prodes_reproduction/pap
 samples_A_approx_3l="/home/alber/Documents/data/experiments/prodes_reproduction/papers/deforestation/data/validation/samples_A_approx_3l.rds"
 samples_B_approx_3l="/home/alber/Documents/data/experiments/prodes_reproduction/papers/deforestation/data/validation/samples_B_approx_3l.rds"
 samples_C_approx_3l="/home/alber/Documents/data/experiments/prodes_reproduction/papers/deforestation/data/validation/samples_C_approx_3l.rds"
+samples_A_raw="/home/alber/Documents/data/experiments/prodes_reproduction/papers/deforestation/data/validation/samples_A_raw.rds"
+samples_B_raw="/home/alber/Documents/data/experiments/prodes_reproduction/papers/deforestation/data/validation/samples_B_raw.rds"
+samples_C_raw="/home/alber/Documents/data/experiments/prodes_reproduction/papers/deforestation/data/validation/samples_C_raw.rds"
+samples_A_raw_3l="/home/alber/Documents/data/experiments/prodes_reproduction/papers/deforestation/data/validation/samples_A_raw_3l.rds"
+samples_B_raw_3l="/home/alber/Documents/data/experiments/prodes_reproduction/papers/deforestation/data/validation/samples_B_raw_3l.rds"
+samples_C_raw_3l="/home/alber/Documents/data/experiments/prodes_reproduction/papers/deforestation/data/validation/samples_C_raw_3l.rds"
 five_labels="Deforestatio,Forest,NatNonForest,NonForest,Pasture"
 three_labels="Deforestatio,Forest,NonForest"
 bands="blue,bnir,green,nnir,red,swir1,swir2"
@@ -31,21 +37,22 @@ out_base_dir="/home/alber/Documents/data/experiments/prodes_reproduction/papers/
 
 "${script_dir}"/04_classify/04_classify_bricks.R approx "${mini_brick_dir}" "${samples_B_approx}"    "${five_labels}"  "${bands}"   "${version}" "${out_base_dir}"
 "${script_dir}"/04_classify/04_classify_bricks.R approx "${mini_brick_dir}" "${samples_B_approx_3l}" "${three_labels}" "${bands}"   "${version}" "${out_base_dir}"
-"${script_dir}"/04_classify/04_classify_bricks.R raw    "${mini_brick_dir}" "${samples_B_approx}"    "${five_labels}"  "${bands}"   "${version}" "${out_base_dir}"
-"${script_dir}"/04_classify/04_classify_bricks.R raw    "${mini_brick_dir}" "${samples_B_approx_3l}" "${three_labels}" "${bands}"   "${version}" "${out_base_dir}"
+"${script_dir}"/04_classify/04_classify_bricks.R raw    "${mini_brick_dir}" "${samples_B_raw}"       "${five_labels}"  "${bands}"   "${version}" "${out_base_dir}"
+"${script_dir}"/04_classify/04_classify_bricks.R raw    "${mini_brick_dir}" "${samples_B_raw_3l}"    "${three_labels}" "${bands}"   "${version}" "${out_base_dir}"
 #-----------------------
 "${script_dir}"/04_classify/04_classify_bricks.R approx "${mini_brick_dir}" "${samples_A_approx}"    "${five_labels}"  "${indices}" "${version}" "${out_base_dir}"
 "${script_dir}"/04_classify/04_classify_bricks.R approx "${mini_brick_dir}" "${samples_A_approx_3l}" "${three_labels}" "${indices}" "${version}" "${out_base_dir}"
-"${script_dir}"/04_classify/04_classify_bricks.R raw    "${mini_brick_dir}" "${samples_A_approx}"    "${five_labels}"  "${indices}" "${version}" "${out_base_dir}"
-"${script_dir}"/04_classify/04_classify_bricks.R raw    "${mini_brick_dir}" "${samples_A_approx_3l}" "${three_labels}" "${indices}" "${version}" "${out_base_dir}"
+"${script_dir}"/04_classify/04_classify_bricks.R raw    "${mini_brick_dir}" "${samples_A_raw}"       "${five_labels}"  "${indices}" "${version}" "${out_base_dir}"
+"${script_dir}"/04_classify/04_classify_bricks.R raw    "${mini_brick_dir}" "${samples_A_raw_3l}"    "${three_labels}" "${indices}" "${version}" "${out_base_dir}"
 #-----------------------
 "${script_dir}"/04_classify/04_classify_bricks.R approx "${mini_brick_dir}" "${samples_C_approx}"    "${five_labels}"  "${bands}"   "${version}" "${out_base_dir}"
 "${script_dir}"/04_classify/04_classify_bricks.R approx "${mini_brick_dir}" "${samples_C_approx_3l}" "${three_labels}" "${bands}"   "${version}" "${out_base_dir}"
-"${script_dir}"/04_classify/04_classify_bricks.R raw    "${mini_brick_dir}" "${samples_C_approx}"    "${five_labels}"  "${bands}"   "${version}" "${out_base_dir}"
-"${script_dir}"/04_classify/04_classify_bricks.R raw    "${mini_brick_dir}" "${samples_C_approx_3l}" "${three_labels}" "${bands}"   "${version}" "${out_base_dir}"
+"${script_dir}"/04_classify/04_classify_bricks.R raw    "${mini_brick_dir}" "${samples_C_raw}"       "${five_labels}"  "${bands}"   "${version}" "${out_base_dir}"
+"${script_dir}"/04_classify/04_classify_bricks.R raw    "${mini_brick_dir}" "${samples_C_raw_3l}"    "${three_labels}" "${bands}"   "${version}" "${out_base_dir}"
 #-----------------------
 "${script_dir}"/04_classify/04_classify_bricks.R approx "${mini_brick_dir}" "${samples_C_approx}"    "${five_labels}"  "${indices}" "${version}" "${out_base_dir}"
 "${script_dir}"/04_classify/04_classify_bricks.R approx "${mini_brick_dir}" "${samples_C_approx_3l}" "${three_labels}" "${indices}" "${version}" "${out_base_dir}"
-"${script_dir}"/04_classify/04_classify_bricks.R raw    "${mini_brick_dir}" "${samples_C_approx}"    "${five_labels}"  "${indices}" "${version}" "${out_base_dir}"
-"${script_dir}"/04_classify/04_classify_bricks.R raw    "${mini_brick_dir}" "${samples_C_approx_3l}" "${three_labels}" "${indices}" "${version}" "${out_base_dir}"
+"${script_dir}"/04_classify/04_classify_bricks.R raw    "${mini_brick_dir}" "${samples_C_raw}"       "${five_labels}"  "${indices}" "${version}" "${out_base_dir}"
+"${script_dir}"/04_classify/04_classify_bricks.R raw    "${mini_brick_dir}" "${samples_C_raw_3l}"    "${three_labels}" "${indices}" "${version}" "${out_base_dir}"
 
+exit 0
