@@ -1,5 +1,5 @@
 #!/usr/bin/Rscript
-.Deprecater("")
+.Deprecater("Use version 3a")
 suppressMessages(library(dplyr))
 suppressMessages(library(dplyr))
 suppressMessages(library(parallel))
