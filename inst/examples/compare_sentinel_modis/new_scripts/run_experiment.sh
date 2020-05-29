@@ -28,7 +28,7 @@ parallel -j 8 "${script_dir}"/01_build_bricks/./build_tif_brick.sh ::: B02_maske
 
 #---- Interpolate masked brikcs ----
 
-#TODO: fix paths.
+#TODO: Make paths relative.
 Rscript "${script_dir}"/01_build_bricks/interp_sentinel-2.R approx /disks/d3/brick_sentinel2/S2A_MSIL2A_R096_T20LKP_20180812T143751_B02_masked_10m.tif  /disks/d3/brick_sentinel2/S2A_MSIL2A_R096_T20LKP_20180812T143751_B02_approx_10m.tif 
 Rscript "${script_dir}"/01_build_bricks/interp_sentinel-2.R approx /disks/d3/brick_sentinel2/S2A_MSIL2A_R096_T20LKP_20180812T143751_B03_masked_10m.tif  /disks/d3/brick_sentinel2/S2A_MSIL2A_R096_T20LKP_20180812T143751_B03_approx_10m.tif
 Rscript "${script_dir}"/01_build_bricks/interp_sentinel-2.R approx /disks/d3/brick_sentinel2/S2A_MSIL2A_R096_T20LKP_20180812T143751_B04_masked_10m.tif  /disks/d3/brick_sentinel2/S2A_MSIL2A_R096_T20LKP_20180812T143751_B04_approx_10m.tif
@@ -67,15 +67,39 @@ sleep 10
 
 #---- Compute K-Folds ----
 
-"${script_dir}"/03_kfolds/03a_k-folds_analysis.R /home/alber/Documents/data/experiments/prodes_reproduction/papers/deforestation/data/validation/samples_A_approx.rds /home/alber/Documents/data/experiments/prodes_reproduction/papers/deforestation/data/validation/samples_B_approx.rds /home/alber/Documents/data/experiments/prodes_reproduction/papers/deforestation/plot/kfold_approx
-"${script_dir}"/03_kfolds/03a_k-folds_analysis.R /home/alber/Documents/data/experiments/prodes_reproduction/papers/deforestation/data/validation/samples_A_raw.rds    /home/alber/Documents/data/experiments/prodes_reproduction/papers/deforestation/data/validation/samples_B_raw.rds    /home/alber/Documents/data/experiments/prodes_reproduction/papers/deforestation/plot/kfold_raw
+"${script_dir}"/03_kfolds/03a_k-folds_analysis.R /home/alber/Documents/data/experiments/prodes_reproduction/papers/deforestation/data/validation/samples_B_approx_3l.rds /home/alber/Documents/data/experiments/prodes_reproduction/papers/deforestation/plot/kfold_approx
+"${script_dir}"/03_kfolds/03a_k-folds_analysis.R /home/alber/Documents/data/experiments/prodes_reproduction/papers/deforestation/data/validation/samples_B_raw_3l.rds    /home/alber/Documents/data/experiments/prodes_reproduction/papers/deforestation/plot/kfold_raw
 
-#---- Classify brikcs ----
+#---- Classify bricks ----
 
-"${script_dir}"/04_classify/04_classify_bricks.R         /home/alber/Documents/data/experiments/prodes_reproduction/papers/deforestation/data/validation/samples_A_approx.rds
-"${script_dir}"/04_classify/04_classify_bricks.R         /home/alber/Documents/data/experiments/prodes_reproduction/papers/deforestation/data/validation/samples_B_approx.rds
-"${script_dir}"/04_classify/04_classify_partial_bricks.R /home/alber/Documents/data/experiments/prodes_reproduction/papers/deforestation/data/validation/samples_A_approx.rds
-"${script_dir}"/04_classify/04_classify_partial_bricks.R /home/alber/Documents/data/experiments/prodes_reproduction/papers/deforestation/data/validation/samples_B_approx.rds
+brick_dir="/disks/d3/brick_sentinel2"
+brick_first_dir="/disks/d3/brick_sentinel2/first_2"
+#samples_A_approx="/home/alber/Documents/data/experiments/prodes_reproduction/papers/deforestation/data/validation/samples_A_approx.rds"
+#samples_B_approx="/home/alber/Documents/data/experiments/prodes_reproduction/papers/deforestation/data/validation/samples_B_approx.rds"
+#samples_C_approx="/home/alber/Documents/data/experiments/prodes_reproduction/papers/deforestation/data/validation/samples_C_approx.rds"
+#samples_A_approx_3l="/home/alber/Documents/data/experiments/prodes_reproduction/papers/deforestation/data/validation/samples_A_approx_3l.rds"
+samples_B_approx_3l="/home/alber/Documents/data/experiments/prodes_reproduction/papers/deforestation/data/validation/samples_B_approx_3l.rds"
+#samples_C_approx_3l="/home/alber/Documents/data/experiments/prodes_reproduction/papers/deforestation/data/validation/samples_C_approx_3l.rds"
+#samples_A_raw="/home/alber/Documents/data/experiments/prodes_reproduction/papers/deforestation/data/validation/samples_A_raw.rds"
+#samples_B_raw="/home/alber/Documents/data/experiments/prodes_reproduction/papers/deforestation/data/validation/samples_B_raw.rds"
+#samples_C_raw="/home/alber/Documents/data/experiments/prodes_reproduction/papers/deforestation/data/validation/samples_C_raw.rds"
+#samples_A_raw_3l="/home/alber/Documents/data/experiments/prodes_reproduction/papers/deforestation/data/validation/samples_A_raw_3l.rds"
+#samples_B_raw_3l="/home/alber/Documents/data/experiments/prodes_reproduction/papers/deforestation/data/validation/samples_B_raw_3l.rds"
+#samples_C_raw_3l="/home/alber/Documents/data/experiments/prodes_reproduction/papers/deforestation/data/validation/samples_C_raw_3l.rds"
+#five_labels="Deforestatio,Forest,NatNonForest,NonForest,Pasture"
+three_labels="Deforestatio,Forest,NonForest"
+bands="blue,bnir,green,nnir,red,swir1,swir2"
+indices="evi,ndmi,ndvi"
+version="009"
+out_base_dir="/home/alber/Documents/data/experiments/prodes_reproduction/papers/deforestation/results9"
+
+# Classify full bricks.
+"${script_dir}"/04_classify/04_classify_bricks.R approx "${brick_dir}" "${samples_B_approx_3l}" "${three_labels}" "${bands}"   "${version}" "${out_base_dir}"
+"${script_dir}"/04_classify/04_classify_bricks.R approx "${brick_dir}" "${samples_B_approx_3l}" "${three_labels}" "${indices}" "${version}" "${out_base_dir}"
+
+# Classify images of the first two dates of the brick.
+"${script_dir}"/04_classify/04a_classify_partial_bricks.R approx "${brick_first_dir}" "${samples_B_approx_3l}" "${three_labels}" "${bands}"   "${version}" "${out_base_dir}"
+"${script_dir}"/04_classify/04a_classify_partial_bricks.R approx "${brick_first_dir}" "${samples_B_approx_3l}" "${three_labels}" "${indices}" "${version}" "${out_base_dir}"
 
 #---- Post processing ----
 
