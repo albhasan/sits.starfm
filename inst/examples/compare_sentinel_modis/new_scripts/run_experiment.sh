@@ -57,18 +57,18 @@ Rscript "${script_dir}"/01_build_bricks/interp_sentinel-2.R approx /disks/d3/bri
 
 #---- Get time series ----
 
-"${script_dir}"/02_get_time_series/02_get_time_series.R /home/alber/Documents/data/experiments/prodes_reproduction/papers/deforestation/data/validation/samples_all_bands.csv approx /home/alber/Documents/data/experiments/prodes_reproduction/papers/deforestation/data/validation/samples_A_approx.rds & # approx_samples_all_bands_csv.rds &
+"${script_dir}"/02_get_time_series/get_time_series.R /home/alber/Documents/data/experiments/prodes_reproduction/papers/deforestation/data/validation/samples_all_bands.csv approx /home/alber/Documents/data/experiments/prodes_reproduction/papers/deforestation/data/validation/samples_A_approx.rds & # approx_samples_all_bands_csv.rds &
 sleep 10
-"${script_dir}"/02_get_time_series/02_get_time_series.R /home/alber/Documents/data/experiments/prodes_reproduction/papers/deforestation/data/validation/samples_indices.csv   approx /home/alber/Documents/data/experiments/prodes_reproduction/papers/deforestation/data/validation/samples_B_approx.rds # approx_samples_indices_csv.rds
+"${script_dir}"/02_get_time_series/get_time_series.R /home/alber/Documents/data/experiments/prodes_reproduction/papers/deforestation/data/validation/samples_indices.csv   approx /home/alber/Documents/data/experiments/prodes_reproduction/papers/deforestation/data/validation/samples_B_approx.rds # approx_samples_indices_csv.rds
 
-"${script_dir}"/02_get_time_series/02_get_time_series.R /home/alber/Documents/data/experiments/prodes_reproduction/papers/deforestation/data/validation/samples_all_bands.csv raw /home/alber/Documents/data/experiments/prodes_reproduction/papers/deforestation/data/validation/samples_A_raw.rds & # raw_samples_all_bands_csv.rds &
+"${script_dir}"/02_get_time_series/get_time_series.R /home/alber/Documents/data/experiments/prodes_reproduction/papers/deforestation/data/validation/samples_all_bands.csv raw /home/alber/Documents/data/experiments/prodes_reproduction/papers/deforestation/data/validation/samples_A_raw.rds & # raw_samples_all_bands_csv.rds &
 sleep 10
-"${script_dir}"/02_get_time_series/02_get_time_series.R /home/alber/Documents/data/experiments/prodes_reproduction/papers/deforestation/data/validation/samples_indices.csv   raw /home/alber/Documents/data/experiments/prodes_reproduction/papers/deforestation/data/validation/samples_B_raw.rds # raw_samples_indices_csv.rds
+"${script_dir}"/02_get_time_series/get_time_series.R /home/alber/Documents/data/experiments/prodes_reproduction/papers/deforestation/data/validation/samples_indices.csv   raw /home/alber/Documents/data/experiments/prodes_reproduction/papers/deforestation/data/validation/samples_B_raw.rds # raw_samples_indices_csv.rds
 
 #---- Compute K-Folds ----
 
-"${script_dir}"/03_kfolds/03a_k-folds_analysis.R /home/alber/Documents/data/experiments/prodes_reproduction/papers/deforestation/data/validation/samples_B_approx_3l.rds /home/alber/Documents/data/experiments/prodes_reproduction/papers/deforestation/plot/kfold_approx
-"${script_dir}"/03_kfolds/03a_k-folds_analysis.R /home/alber/Documents/data/experiments/prodes_reproduction/papers/deforestation/data/validation/samples_B_raw_3l.rds    /home/alber/Documents/data/experiments/prodes_reproduction/papers/deforestation/plot/kfold_raw
+"${script_dir}"/03_kfolds/k-folds_analysis.R /home/alber/Documents/data/experiments/prodes_reproduction/papers/deforestation/data/validation/samples_B_approx_3l.rds /home/alber/Documents/data/experiments/prodes_reproduction/papers/deforestation/plot/kfold_approx
+"${script_dir}"/03_kfolds/k-folds_analysis.R /home/alber/Documents/data/experiments/prodes_reproduction/papers/deforestation/data/validation/samples_B_raw_3l.rds    /home/alber/Documents/data/experiments/prodes_reproduction/papers/deforestation/plot/kfold_raw
 
 #---- Classify bricks ----
 
@@ -94,12 +94,12 @@ version="009"
 out_base_dir="/home/alber/Documents/data/experiments/prodes_reproduction/papers/deforestation/results9"
 
 # Classify full bricks.
-"${script_dir}"/04_classify/04_classify_bricks.R approx "${brick_dir}" "${samples_B_approx_3l}" "${three_labels}" "${bands}"   "${version}" "${out_base_dir}"
-"${script_dir}"/04_classify/04_classify_bricks.R approx "${brick_dir}" "${samples_B_approx_3l}" "${three_labels}" "${indices}" "${version}" "${out_base_dir}"
+"${script_dir}"/04_classify/classify_bricks.R approx "${brick_dir}" "${samples_B_approx_3l}" "${three_labels}" "${bands}"   "${version}" "${out_base_dir}"
+"${script_dir}"/04_classify/classify_bricks.R approx "${brick_dir}" "${samples_B_approx_3l}" "${three_labels}" "${indices}" "${version}" "${out_base_dir}"
 
 # Classify images of the first two dates of the brick.
-"${script_dir}"/04_classify/04a_classify_partial_bricks.R approx "${brick_first_dir}" "${samples_B_approx_3l}" "${three_labels}" "${bands}"   "${version}" "${out_base_dir}"
-"${script_dir}"/04_classify/04a_classify_partial_bricks.R approx "${brick_first_dir}" "${samples_B_approx_3l}" "${three_labels}" "${indices}" "${version}" "${out_base_dir}"
+"${script_dir}"/04_classify/classify_partial_bricks.R approx "${brick_first_dir}" "${samples_B_approx_3l}" "${three_labels}" "${bands}"   "${version}" "${out_base_dir}"
+"${script_dir}"/04_classify/classify_partial_bricks.R approx "${brick_first_dir}" "${samples_B_approx_3l}" "${three_labels}" "${indices}" "${version}" "${out_base_dir}"
 
 #---- Post processing ----
 
