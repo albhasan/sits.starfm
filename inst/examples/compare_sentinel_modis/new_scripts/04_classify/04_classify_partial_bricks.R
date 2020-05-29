@@ -2,7 +2,7 @@
 #-------------------------------------------------------------------------------
 # CLASSIFY SENTINEL-2 BRICKS
 #-------------------------------------------------------------------------------
-
+.Deprecated("")
 suppressMessages(library(dplyr))
 suppressMessages(library(raster))
 suppressMessages(library(sits))
