@@ -760,21 +760,35 @@ helper_pile_vrt <- function(.data, out_dir, cmd, var_file){
 # @param in_dir A length-one character. Path to a directory with classification results.
 # @return       A tibble.
 get_results <- function(in_dir){
+    # Check if the type of classfication is first images of the brick.
+    get_class_type <- function(x){
+        my_pattern = "first|last"
+        if(!stringr::str_detect(x, my_pattern))
+            return(NA_character_)
+        stringr::str_subset(stringr::str_split(x, '/', simplify = TRUE), pattern = my_pattern)
+    }
+    # Get n directories up in the given path.
+    dir_up <- function(x, n){
+        if(n < 1)
+            return(x)
+        dir_up(dirname(x), n - 1)
+    }
 
     in_dir %>%
         list.files(pattern = "[.]tif", recursive = TRUE, full.names = TRUE) %>%
         tibble::enframe(name = NULL) %>%
         dplyr::rename(file_path = value) %>%
         dplyr::mutate(file_name = basename(file_path),
-                      file_dir  = dirname(file_path),
-                      used_method = basename(file_dir),
-                      used_bands  = basename(dirname(file_dir))) %>%
-        dplyr::mutate(img_type = dplyr::case_when(stringr::str_detect(file_name, pattern = "_probs_class")                ~ "classification",
-                                                  stringr::str_detect(file_name, pattern = "_probs_")                     ~ "probability",
-                                                  stringr::str_detect(file_name, pattern = "postprocessing_first_masked") ~ "postprocessing_first_masked",
-                                                  stringr::str_detect(file_name, pattern = "postprocessing_last_masked")  ~ "postprocessing_last_masked",
-                                                  stringr::str_detect(file_name, pattern = "postprocessing_first")        ~ "postprocessing_first",
-                                                  stringr::str_detect(file_name, pattern = "postprocessing_last")         ~ "postprocessing_last")) %>%
+                      class_type = purrr::map_chr(dirname(file_path), get_class_type),
+                      file_dir   = ifelse(is.na(class_type), dirname(file_path), dir_up(dirname(file_path), 1)),
+                      class_type = ifelse(is.na(class_type), "full", class_type),
+                      used_method  = basename(dir_up(file_dir, 0)),
+                      used_labels  = basename(dir_up(file_dir, 1)),
+                      used_bands   = basename(dir_up(file_dir, 2)),
+                      used_samples = basename(dir_up(file_dir, 3)),
+                      brick_type   = basename(dir_up(file_dir, 4))) %>%
+        dplyr::mutate(img_type = dplyr::case_when(stringr::str_detect(file_name, pattern = "_probs_class") ~ "classification",
+                                                  stringr::str_detect(file_name, pattern = "_probs_")      ~ "probability")) %>%
         dplyr::select(-file_name, -file_dir) %>%
         return()
 }
@@ -819,20 +833,20 @@ add_coords <- function(point_sf){
 # @param partial       A length-one character. Indicate if either the first or last part of the brick is bein postprocesssed.
 # @param out_dir       A length-one character. Path to a dir to store the results.
 # @return              A path to the results.
-postprocessing <- function(partial_class, full_class, rules, partial = "first",
-                           out_dir = NULL){
+postprocessing <- function(partial_class, full_class, rules,
+                           partial = "first", out_dir = NULL){
     stopifnot(partial %in% c("first", "last"))
     if (is.null(out_dir)) {
         out_file <- full_class %>%
             dirname() %>%
             file.path(paste0("postprocessing_", partial, ".tif"))
     }else{
+        if(!dir.exists(out_dir)){
+            warning(sprintf("Creating dir %s", out_dir))
+            dir.create(out_dir, recursive = TRUE)
+        }
         out_file <- out_dir %>%
             file.path(paste0("postprocessing_", partial, ".tif"))
-    }
-    if(!dir.exists(out_dir)){
-        warning(sprintf("Creating dir %s", out_dir))
-        dir.create(out_dir, recursive = TRUE)
     }
     cmd <- sprintf("/usr/bin/gdal_calc.py -A %s -B %s --outfile=%s --calc='(%s).astype(int16)' --NoDataValue=-9999 --type='Int16' --creation-option='COMPRESS=LZW' --creation-option='BIGTIFF=YES'",
                    partial_class, full_class, out_file, rules)
