@@ -101,6 +101,8 @@ out_base_dir="/home/alber/Documents/data/experiments/prodes_reproduction/papers/
 "${script_dir}"/04_classify/classify_partial_bricks.R approx "${brick_first_dir}" "${samples_B_approx_3l}" "${three_labels}" "${bands}"   "${version}" "${out_base_dir}"
 "${script_dir}"/04_classify/classify_partial_bricks.R approx "${brick_first_dir}" "${samples_B_approx_3l}" "${three_labels}" "${indices}" "${version}" "${out_base_dir}"
 
-#---- Post processing ----
+#---- Post-processing ----
+
+"${script_dir}"/05_post-processing/apply_rules.R "${out_base_dir}"
 
 exit 0
