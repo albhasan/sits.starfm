@@ -4,27 +4,35 @@ suppressMessages(library(caret))
 suppressMessages(library(sits))
 
 args = commandArgs(trailingOnly = TRUE)
-if (length(args) != 3) {
-    stop("This script takes two parameters: Two input files (RDS) of time series of samples, and an output directory.",  call. = FALSE)
+if (length(args) != 2) {
+    stop("This script takes parameters: An input file (RDS) of time series of samples, and an output directory.",  call. = FALSE)
 }
 
-samples_file_1 <- args[[1]]
-samples_file_2 <- args[[2]]
-out_dir     <- args[[3]]
-#samples_file_1 <- "/home/alber/Documents/data/experiments/prodes_reproduction/papers/deforestation/data/validation/approx_samples_all_bands_csv.rds"
-#samples_file_2 <- "/home/alber/Documents/data/experiments/prodes_reproduction/papers/deforestation/data/validation/approx_samples_indices_csv.rds"
+rds_file     <- args[[1]]
+out_base_dir <- args[[2]]
+# rds_file <- "/home/alber/Documents/data/experiments/prodes_reproduction/papers/deforestation/data/validation/samples_B_approx_3l.rds"
+# bands <- c("blue","bnir","green","nnir","red","swir1","swir2")
+# bands <- c("evi","ndmi","ndvi")
+# out_base_dir  <- "/home/alber/Documents/data/experiments/prodes_reproduction/papers/deforestation/plot"
 
-samples_tb <- samples_file_1 %>%
+out_dir <- out_base_dir %>% 
+    file.path(tools::file_path_sans_ext(basename(rds_file)))
+if (!dir.exists(out_dir))
+   dir.create(out_dir, recursive = TRUE)
+
+samples_tb <- rds_file %>%
     readRDS() %>%
-    dplyr::bind_rows(readRDS(samples_file_2)) %>%
     dplyr::filter(label != "Water")
 
 experiments <- list(all_bands = c("blue","bnir","green","nnir","red","swir1","swir2"),
                     indeces   = c("evi","ndmi","ndvi"))
+warning(sprintf("Using ONLY %s combination of bands:\n%s", length(experiments), 
+                paste(lapply(experiments, paste, collapse = "-"), 
+                      collapse = "\n")))
 
 source("/home/alber/Documents/data/experiments/prodes_reproduction/papers/deforestation/scripts_bricks/util.R")
 
-run <- function(bands, samples_tb){
+run_kfolds <- function(bands, samples_tb){
     lapply(1:100, function(i){
         samples_tb %>%
             sits::sits_sample(n = 60) %>%
@@ -36,7 +44,7 @@ run <- function(bands, samples_tb){
     })
 }
 
-kfold_ls <- lapply(experiments, run, samples_tb = samples_tb)
+kfold_ls <- lapply(experiments, run_kfolds, samples_tb = samples_tb) 
 
 helper_acc <- function(x, label, acc_type){
     sapply(x,  get_up_accuracy, label = label, acc_type = acc_type)
@@ -53,7 +61,17 @@ exp_tb <- tibble::tibble(experiment = names(experiments)) %>%
                   nof_pa = purrr::map(kfold, helper_acc, label = "NonForest",    acc_type = "pa"),
                   nof_ua = purrr::map(kfold, helper_acc, label = "NonForest",    acc_type = "ua"),
                   pas_pa = purrr::map(kfold, helper_acc, label = "Pasture",      acc_type = "pa"),
-                  pas_ua = purrr::map(kfold, helper_acc, label = "Pasture",      acc_type = "ua"))
+                  pas_ua = purrr::map(kfold, helper_acc, label = "Pasture",      acc_type = "ua")) %>% 
+    # NOTE: Remove embedded NA columns.
+    dplyr::select_if(function(x){
+        if(!is.list(x))
+            return(TRUE)
+        res <- list()
+        for(i in 1:length(x)){ 
+            res[[i]] <- !all(is.na(x[[i]]))
+        }
+        return(all(res))
+    })
 
 helper_plot <- function(x, label){
     x %>%
@@ -85,8 +103,16 @@ fix_name <- function(x){
     }
 
 for (name in names(exp_tb)[3:ncol(exp_tb)]) {
-    helper_plot(exp_tb[[name]], fix_name(name)) %>%
-        ggplot2::ggsave(file = file.path(out_dir,
-                                         paste0(tolower(fix_name(name)), ".png")),
+    fixed_name <- fix_name(name)
+    helper_plot(exp_tb[[name]], fixed_name) %>%
+        # (function(x){
+        #     plot(x)
+        #     invisible(x)
+        # })
+        ggplot2::ggsave(file = file.path(out_dir, 
+                                         paste0(stringr::str_replace_all(tolower(fixed_name), 
+                                                                  pattern = ' ', 
+                                                                  replacement = '_'), 
+                                         ".png")),
                         width = 8, height = 3, units = "cm")
 }
