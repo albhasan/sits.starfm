@@ -11,7 +11,7 @@ suppressMessages(library(sits))
 
 args = commandArgs(trailingOnly = TRUE)
 if (length(args) != 7) {
-    stop("This script takes a parameters:
+    stop("This script takes parameters:
          A brick type [approx|raw],
          a brick directory,
          a samples file (RDS of a sits tibble with time series),
@@ -29,25 +29,10 @@ used_bands     <- sort(unlist(stringr::str_split(args[[5]], ',')))
 version_number <-                                args[[6]]
 out_base_dir   <-                                args[[7]]
 
-#b_type         <- "approx"
-#brick_dir      <- "/disks/d3/brick_sentinel2/mini"
-#samples_file   <- "/home/alber/Documents/data/experiments/prodes_reproduction/papers/deforestation/data/validation/samples_A_approx.rds"
-#used_labels    <- c("Deforestation", "Forest", "Pasture")
-#used_bands     <- c("blue", "bnir", "green", "nnir", "red", "swir1", "swir2")
-#version_number <- "006"
-#out_base_dir   <- "/home/alber/Documents/data/experiments/prodes_reproduction/papers/deforestation/results6/"
-
 stopifnot(b_type %in% c("approx", "raw"))
 stopifnot(dir.exists(brick_dir))
 stopifnot(file.exists(samples_file))
 #stopifnot(dir.exists(out_base_dir))
-
-print(b_type)
-print(brick_dir)
-print(samples_file)
-print(used_labels)
-print(used_bands)
-print(out_base_dir)
 
 #---- Setup ----
 
@@ -101,8 +86,7 @@ classify <- function(used_bands, used_labels, brick_dir, samples_file,
                             bands = brick_tb$band,
                             files = brick_tb$file_path)
     write(sits::sits_bands(cube), file = file.path(out_dir, "sits_bands.txt"))
-    write(sits::sits_labels(samples_tb)$label,
-          file = file.path(out_dir, "sits_labels.txt"))
+    write(used_labels, file = file.path(out_dir, "sits_labels.txt"))
     model <- samples_tb %>%
         sits::sits_train(ml_method = sits_method) %>%
         (function(x){
@@ -123,8 +107,10 @@ classify <- function(used_bands, used_labels, brick_dir, samples_file,
 #---- Classify using Random Forest ----
 
 out_dir <- file.path(out_base_dir,
-                     paste(b_type, out_file_template, sep = "-"),
+                     b_type,
+                     out_file_template,
                      paste(used_bands, collapse = '-'),
+                     paste(used_labels, collapse = '-'),
                      "random-forest_1000/")
 if (!dir.exists(out_dir))
     dir.create(out_dir, recursive = TRUE)
