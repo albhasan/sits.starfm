@@ -177,17 +177,19 @@ filter_and_pile <- function(band_name, img_tb, out_pattern){
 # @param acc_type A lenght-one character. The type of accuracy: Producer (pa) or User (ua)
 # @return         A matrix or NA.
 get_up_accuracy <- function(x, label, acc_type = "pa") {
-    stopifnot(acc_type %in% c("pa", "ua"))
+    stopifnot(acc_type %in% c("pa", "ua", "F1"))
+    accuracy_label <- acc_type
     if (acc_type == "pa")
         accuracy_label <- "Sensitivity"
     if (acc_type == "ua")
+        warning("Check if Pos Pred Value is the same as User Accuracy")
         accuracy_label <- "Pos Pred Value"
     index_mt <- x %>%
         magrittr::extract2("byClass")
-    row_id <- match(toupper(label), stringr::str_match(toupper(rownames(index_mt)),
-                                              toupper(label)))
-    col_id <- match(accuracy_label, stringr::str_match(colnames(index_mt),
-                                                       accuracy_label))
+    stopifnot("Sensitivity" %in% colnames(index_mt))
+    label <- paste0(' ', label)
+    col_id <- match(accuracy_label, stringr::str_match(colnames(index_mt), accuracy_label))
+    row_id <- match(toupper(label), stringr::str_match(toupper(rownames(index_mt)), toupper(label)))
     if (any(is.na(c(row_id, col_id))))
         return(NA)
     return(index_mt[row_id, col_id])
@@ -484,7 +486,7 @@ helper_mask <- function(id_row, sentinel_tb, out_dir = tempdir()){
 # Helper for masking in parallel.
 #
 # @param id_row      A length-one integer. A row number in sentinel_tb.
-# @param sentinel_tb A tibble describing Sentienl-2 images.
+# @param sentinel_tb A tibble describing Sentinel-2 images.
 # @param var         A name of a variable (column) in sentinel_tb.
 # @return            A character. Path to the masked image.
 helper_mask2 <- function(id_row, img_tb, var, out_dir = tempdir()){
@@ -732,7 +734,7 @@ compute_pca <- function(.data, pca_matrix) {
 # @param var_file A name of column in .data containing the paths to the files to pile.
 # @return         A tibble. .data plus the principal components.
 helper_pile_vrt <- function(.data, out_dir, cmd, var_file){
-    .Deprecater("Use bash scripts instead.")
+    .Deprecated("Use bash scripts instead.")
     var_file <- rlang::enquo(var_file)
     file_tb <- .data %>%
         ensurer::ensure_that(nrow(.) == 36, err_desc = "Missing images!") %>%
@@ -755,6 +757,41 @@ helper_pile_vrt <- function(.data, out_dir, cmd, var_file){
         return()
 }
 
+
+# Get a list of the reference and predicted labels for the given samples.
+#
+# @param samples     A sits tibble of sample points.
+# @param raster_obj  A raster object.
+# @param label_vec   A character. The labels in the given raster file.
+# @return       A tibble.
+get_ref_pred <- function(samples, raster_obj, label_vec){
+    if(any(is.null(names(label_vec)))){
+        warning("Setting names of vector of labels of the input raster.")
+        label_vec <- label_vec %>%
+            magrittr::set_names(1:length(.))
+    }
+    spdf <- sp::SpatialPointsDataFrame(coords = as.matrix(samples[,c("longitude",
+                                                                     "latitude")]),
+                                       data = as.data.frame(samples["label"],
+                                                            stringsAsFactors = FALSE),
+                                       proj4string = sp::CRS("+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs")) %>%
+            ensurer::ensure_that(all(sort(label_vec) %in% sort(unique(.$label))),
+                                 err_desc = sprintf("Label missmatch between the raster and the samples: %s %s",
+                                                    paste(sort(label_vec), collapse = '_'),
+                                                    paste(sort(unique(.$label)), collapse = '_')))
+    raster_obj %>%
+        raster::extract(y = spdf, sp = TRUE) %>%
+        sf::st_as_sf() %>%
+        sf::st_set_geometry(NULL) %>%
+        tibble::tibble() %>%
+        magrittr::set_colnames(c("reference", "predicted")) %>%
+        dplyr::mutate(predicted = as.character(predicted)) %>%
+        dplyr::mutate(predicted = dplyr::recode(predicted, !!!label_vec)) %>%
+        ensurer::ensure_that(sum(is.na(.$predicted)) == 0,
+                             err_desc = "missing labels!") %>%
+        return()
+}
+
 # Build a tibble of metadata of the classification maps.
 #
 # @param in_dir A length-one character. Path to a directory with classification results.
@@ -765,7 +802,8 @@ get_results <- function(in_dir){
         my_pattern = "first|last"
         if(!stringr::str_detect(x, my_pattern))
             return(NA_character_)
-        stringr::str_subset(stringr::str_split(x, '/', simplify = TRUE), pattern = my_pattern)
+        stringr::str_subset(stringr::str_split(x, '/', simplify = TRUE),
+                            pattern = my_pattern)
     }
     # Get n directories up in the given path.
     dir_up <- function(x, n){
@@ -779,15 +817,19 @@ get_results <- function(in_dir){
         tibble::enframe(name = NULL) %>%
         dplyr::rename(file_path = value) %>%
         dplyr::mutate(file_name = basename(file_path),
-                      class_type = purrr::map_chr(dirname(file_path), get_class_type),
-                      file_dir   = ifelse(is.na(class_type), dirname(file_path), dir_up(dirname(file_path), 1)),
+                      class_type = purrr::map_chr(dirname(file_path),
+                                                  get_class_type),
+                      file_dir   = ifelse(is.na(class_type),
+                                          dirname(file_path),
+                                          dir_up(dirname(file_path), 1)),
                       class_type = ifelse(is.na(class_type), "full", class_type),
                       used_method  = basename(dir_up(file_dir, 0)),
                       used_labels  = basename(dir_up(file_dir, 1)),
                       used_bands   = basename(dir_up(file_dir, 2)),
                       used_samples = basename(dir_up(file_dir, 3)),
                       brick_type   = basename(dir_up(file_dir, 4))) %>%
-        dplyr::mutate(img_type = dplyr::case_when(stringr::str_detect(file_name, pattern = "_probs_class") ~ "classification",
+        dplyr::mutate(img_type = dplyr::case_when(stringr::str_detect(file_name, pattern = "postprocessing_") ~ "postprocessing",
+                                                  stringr::str_detect(file_name, pattern = "_probs_class") ~ "classification",
                                                   stringr::str_detect(file_name, pattern = "_probs_")      ~ "probability")) %>%
         dplyr::select(-file_name, -file_dir) %>%
         return()

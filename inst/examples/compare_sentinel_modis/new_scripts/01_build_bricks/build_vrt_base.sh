@@ -1,7 +1,7 @@
 #!/bin/bash
 shopt -s nullglob
 
-out_dir=/disks/d3/brick_sentinel2_raw/vrt
+out_dir=/disks/d3/brick_sentinel2/vrt
 
 test=$(gdalbuildvrt --help | grep -E "(\{|,)$1(\}|,)")
 if [ "${test}" == "" ]; then

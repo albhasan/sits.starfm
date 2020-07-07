@@ -10,12 +10,13 @@ if (length(args) != 2) {
 
 rds_file     <- args[[1]]
 out_base_dir <- args[[2]]
-# rds_file <- "/home/alber/Documents/data/experiments/prodes_reproduction/papers/deforestation/data/validation/samples_B_approx_3l.rds"
-# bands <- c("blue","bnir","green","nnir","red","swir1","swir2")
-# bands <- c("evi","ndmi","ndvi")
-# out_base_dir  <- "/home/alber/Documents/data/experiments/prodes_reproduction/papers/deforestation/plot"
 
-out_dir <- out_base_dir %>% 
+rds_file <-     "/home/alber/Documents/data/experiments/prodes_reproduction/papers/deforestation/data/validation/samples_B_approx_3l.rds"
+out_base_dir <- "/home/alber/Documents/data/experiments/prodes_reproduction/papers/deforestation/plot/kfold_approx"
+#rds_file <-     "/home/alber/Documents/data/experiments/prodes_reproduction/papers/deforestation/data/validation/samples_B_raw_3l.rds"
+#out_base_dir <- "/home/alber/Documents/data/experiments/prodes_reproduction/papers/deforestation/plot/kfold_raw"
+
+out_dir <- out_base_dir %>%
     file.path(tools::file_path_sans_ext(basename(rds_file)))
 if (!dir.exists(out_dir))
    dir.create(out_dir, recursive = TRUE)
@@ -24,10 +25,16 @@ samples_tb <- rds_file %>%
     readRDS() %>%
     dplyr::filter(label != "Water")
 
+# NOTE: save to PANGEA
+samples_tb %>%
+    dplyr::mutate(id = dplyr::row_number()) %>%
+    dplyr::select(id, longitude, latitude, start_date, end_date, label) %>%
+    readr::write_csv("/home/alber/Documents/data/experiments/prodes_reproduction/papers/deforestation/pangea/training_dataset.csv")
+
 experiments <- list(all_bands = c("blue","bnir","green","nnir","red","swir1","swir2"),
                     indeces   = c("evi","ndmi","ndvi"))
-warning(sprintf("Using ONLY %s combination of bands:\n%s", length(experiments), 
-                paste(lapply(experiments, paste, collapse = "-"), 
+warning(sprintf("Using ONLY %s combination of bands:\n%s", length(experiments),
+                paste(lapply(experiments, paste, collapse = "-"),
                       collapse = "\n")))
 
 source("/home/alber/Documents/data/experiments/prodes_reproduction/papers/deforestation/scripts_bricks/util.R")
@@ -44,7 +51,7 @@ run_kfolds <- function(bands, samples_tb){
     })
 }
 
-kfold_ls <- lapply(experiments, run_kfolds, samples_tb = samples_tb) 
+kfold_ls <- lapply(experiments, run_kfolds, samples_tb = samples_tb)
 
 helper_acc <- function(x, label, acc_type){
     sapply(x,  get_up_accuracy, label = label, acc_type = acc_type)
@@ -61,13 +68,13 @@ exp_tb <- tibble::tibble(experiment = names(experiments)) %>%
                   nof_pa = purrr::map(kfold, helper_acc, label = "NonForest",    acc_type = "pa"),
                   nof_ua = purrr::map(kfold, helper_acc, label = "NonForest",    acc_type = "ua"),
                   pas_pa = purrr::map(kfold, helper_acc, label = "Pasture",      acc_type = "pa"),
-                  pas_ua = purrr::map(kfold, helper_acc, label = "Pasture",      acc_type = "ua")) %>% 
+                  pas_ua = purrr::map(kfold, helper_acc, label = "Pasture",      acc_type = "ua")) %>%
     # NOTE: Remove embedded NA columns.
     dplyr::select_if(function(x){
         if(!is.list(x))
             return(TRUE)
         res <- list()
-        for(i in 1:length(x)){ 
+        for(i in 1:length(x)){
             res[[i]] <- !all(is.na(x[[i]]))
         }
         return(all(res))
@@ -100,19 +107,19 @@ fix_name <- function(x){
         stringr::str_replace("nof ", "Non-Forest ") %>%
         stringr::str_replace("pas ", "Pasture ") %>%
         return()
-    }
+}
 
 for (name in names(exp_tb)[3:ncol(exp_tb)]) {
     fixed_name <- fix_name(name)
     helper_plot(exp_tb[[name]], fixed_name) %>%
-        # (function(x){
-        #     plot(x)
-        #     invisible(x)
-        # })
-        ggplot2::ggsave(file = file.path(out_dir, 
-                                         paste0(stringr::str_replace_all(tolower(fixed_name), 
-                                                                  pattern = ' ', 
-                                                                  replacement = '_'), 
+         (function(x){
+             plot(x)
+             invisible(x)
+         })
+        ggplot2::ggsave(file = file.path(out_dir,
+                                         paste0(stringr::str_replace_all(tolower(fixed_name),
+                                                                  pattern = ' ',
+                                                                  replacement = '_'),
                                          ".png")),
                         width = 8, height = 3, units = "cm")
 }

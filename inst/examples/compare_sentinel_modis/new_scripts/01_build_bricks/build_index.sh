@@ -4,7 +4,7 @@
 
 shopt -s nullglob
 
-out_dir=/disks/d3/brick_sentinel2_raw
+out_dir=/disks/d3/brick_sentinel2
 index="$1"
 
 mkdir -p "${out_dir}"/tif 2> /dev/null

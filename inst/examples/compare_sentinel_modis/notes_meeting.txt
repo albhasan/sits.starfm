@@ -1,0 +1,78 @@
+#-------------------------------------------------------------------------------
+# NOTES FROM THE MEETINGS WITH GILBERTO CAMARA REGARDING MY NEXT PAPER.
+#-------------------------------------------------------------------------------
+
+- DONE Performance of vegetation indices from Landsat time series in 
+  deforestation monitoring - Shultz NDMI SAVI GEMI NDFI tesselated cap (Souza's 
+  NDMI is the best, however, it requires Spectral Mixture Model which requires 
+  in turn non-time series sampling of shadows and non-photosyntetic vegetation).
+- A review of vegetation phenological metrics extraction using time-series, 
+  multispectral satellite data. - Zeng
+
+- Experiment: Use Random Forest and SVN                                                                             
+- Baseline NDVI EVI                                                               
+- avaliar 1 index   NDVI                                                          
+- avaliar 2 indexes                                                               
+- avaliar 3 indexes ate ele deixar de melhorar    
+
+#-------------------------------------------------------------------------------
+
+- Compute EVI2. NOTE: EVI2 for Sentinel-2 needs the B05 which isn't available 
+with 10-meter resolution.
+- Forget about the classifier.
+- Run TWDTW using degradation patterns.
+- Think of doing something different.
+- DONE: Write the thesis' introduction
+- DONE: Write an email asking for more time for the thesis jurors.
+- DONE: Write introduction and send to Pedro
+- Thesis name: Strategies for deforestation mapping using medium resolution images
+- Read Mondial's paper.
+
+#-------------------------------------------------------------------------------
+
+# NEXT EXPERIMENT
+
+Test if Sentinel-2's time series allow us to see what we don't see in MODIS' 
+classification because of spatial resolution. In other words, use Sentinel-2 to 
+disagregate MODIS' classification of Amazonia.
+
+Don't compare to Landsat; forget Landsat, use Sentinel-2.
+
+One of the problems of the Landsat-8 classification presented at GeoINFO was
+its innacuracy when compared to PRODES, in special for deforeatation. PRODES
+focuses on "corte raso" (slash) and ignores burn scars and forest degradation.
+
+For that reson, we decided to mix PRODES' deforestation with DETER's burn scars
+and forest degradation to better approximate the classification results.
+
+We can use 4 or 5 classes. For example:
+- forest
+- *secondary vegetation - only available after post-processing, not during classification!
+- corte raso
+- degradation
+- quemada
+- agriculture
+- pastagem
+
+For an initial test, use a simple classification method such as SVM including 
+a couple of features made of vegetation indexes (the new ones identified by 
+Michell).
+
+#-------------------------------------------------------------------------------
+
+# OLD NOTES REGARING REVIEWER-2 OF PAPER ON CLOUD MASKS
+
+Write to the editor, we have do not agree with reviewer 2 and we would like the 
+know the opinions of editors regarding our paper.
+
+Olafson relies on having a reference map of better accuracy and resolution that 
+the one being evaluated.
+
+# SEGMENTATION.
+
+Also, we could use segmentation to improve the classification. Check "Parameter 
+selection for region‐growing image segmentation algorithms using spatial 
+autocorrelation" by Spindola and Câmara.
+
+https://www.tandfonline.com/doi/full/10.1080/01431160600617194
+

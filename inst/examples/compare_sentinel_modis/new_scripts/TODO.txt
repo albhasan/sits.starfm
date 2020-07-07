@@ -1,7 +1,50 @@
 DONE - Build mini-bricks using (minX, minY, maxX, maxY) = (-65.10175 -10.10455 -65.02418 -10.03270)
 DONE - Create an envelope shapefile and send it to Michelle (directory minibrick in esensing's dropbox)
-- Change the samples' names to samples_A (all bands), samples_B (indexes)
-- Too few samples of deforestation
+DONE - Change the samples' names to samples_A (all bands), samples_B (indexes)
+DONE - Create samples_C from samples_A & samples_B.
+DONE - Classifications mini bricks 11 - 44
+DONE - Validate mini bricks using Michelle and Rolf's sample points.
+DONE - Run a full brick classification of all_bands, samples B, cube approx, 3 labels
+DONE - Run a full brick classification fo indices,   samples B, cube approx, 3 labels
+DONE - Do K-Folds with 3 labels
+DONE - Update K-Folds figures in overleaf.
+DONE - Run classification of the first two images.
+DONE - Apply post-processing rules.
+DONE - Sample 70 random points for all_bands classification inside the label Deforestation 
+DONE - Sample 72 random points for indices   classification inside the label Deforestation
+DONE - Sample 84 points from Forest and NonForest for each classification from the existing samples_A_3l.rds
+DONE - join the extra deforestation points to the samples
+DONE - compute confusion matrices.
+DONE - Compute an histogram of area distribution by patch of deforetation for both classifications: Bands & Indeces.
+- Build QGIS layout of 3 columns (Sentinel images, Bands, Indeces) comparing patches of the classification (3 or 4).
+
+Claudio:
+- Fazer desmatamento de floresta primaria.
+- Justificar PRODES mask.
+- subcapitulo. Desmatamento de floesta primaria
+
+Paper - Effect of Training Class Label Noise on Classification Performances for Land Cover Mapping with SatelliteImage Time Series
+
+#------------------------
+Selected classifications:
+
+Classification 12
+- Bands      All bands
+- Training   Samples B
+- Labels     3 class
+- Brick      Approx
+- Validation Samples A + extra samples
+
+Classification 52
+- Bands      Indeces
+- Training   Samples B
+- Labels     3 class
+- Brick      Approx
+- Validation Samples A + extra samples
+
+#------------------------
+
+Experiments mini-bricks:
 
 Samples
 - A (all bands)
@@ -28,12 +71,12 @@ Bands
 - Indices
 - All bands
 
-Classification 11 
-- Bands      All bands
-- Training   Samples B
-- Labels     5 class
-- Brick      Approx
-- Validation Samples A
+#Classification 11 
+#- Bands      All bands
+#- Training   Samples B
+#- Labels     5 class
+#- Brick      Approx
+#- Validation Samples A
 
 Classification 12
 - Bands      All bands
@@ -42,107 +85,196 @@ Classification 12
 - Brick      Approx
 - Validation Samples A
 
-Classification 13
-- Bands      All bands
-- Training   Samples B
-- Labels     5 class
-- Brick      Raw
-- Validation Samples A
+#Classification 13
+#- Bands      All bands
+#- Training   Samples B
+#- Labels     5 class
+#- Brick      Raw
+#- Validation Samples A
 
-Classification 14
-- Bands      All bands
-- Training   Samples B
-- Labels     3 class
-- Brick      Raw
-- Validation Samples A
+#Classification 14
+#- Bands      All bands
+#- Training   Samples B
+#- Labels     3 class
+#- Brick      Raw
+#- Validation Samples A
 
 #-----------------------
 
-Classification 21 
+#Classification 21 
+#- Bands      Indeces
+#- Training   Samples A
+#- Labels     5 class
+#- Brick      Approx
+#- Validation Samples B
+
+#Classification 22
+#- Bands      Indeces
+#- Training   Samples A
+#- Labels     3 class
+#- Brick      Approx
+#- Validation Samples B
+
+#Classification 23
+#- Bands      Indices
+#- Training   Samples A
+#- Labels     5 class
+#- Brick      Raw
+#- Validation Samples B
+
+#Classification 24
+#- Bands      Indices
+#- Training   Samples A
+#- Labels     3 class
+#- Brick      Raw
+#- Validation Samples B
+
+#-----------------------
+
+#Classification 31
+#- Bands      All bands
+#- Training   Samples C
+#- Labels     5 class
+#- Brick      Approx
+#- Validation NA
+
+#Classification 32
+#- Bands      All bands
+#- Training   Samples C
+#- Labels     3 class
+#- Brick      Approx
+#- Validation NA
+
+#Classification 33
+#- Bands      All bands
+#- Training   Samples c
+#- Labels     5 class
+#- Brick      Raw
+#- Validation NA
+
+#Classification 34
+#- Bands      All bands
+#- Training   Samples C
+#- Labels     3 class
+#- Brick      Raw
+#- Validation NA
+
+#-----------------------
+
+#Classification 41
+#- Bands      Indices
+#- Training   Samples C
+#- Labels     5 class
+#- Brick      Approx
+#- Validation NA
+
+#Classification 42
+#- Bands      Indices
+#- Training   Samples C
+#- Labels     3 class
+#- Brick      Approx
+#- Validation NA
+
+#Classification 43
+#- Bands      Indices
+#- Training   Samples c
+#- Labels     5 class
+#- Brick      Raw
+#- Validation NA
+
+#Classification 44
+#- Bands      Indices
+#- Training   Samples C
+#- Labels     3 class
+#- Brick      Raw
+#- Validation NA
+
+
+#-----------------------
+
+#Classification 51 
+#- Bands      Indeces
+#- Training   Samples B
+#- Labels     5 class
+#- Brick      Approx
+#- Validation NA
+
+Classification 52
 - Bands      Indeces
-- Training   Samples A
-- Labels     5 class
-- Brick      Approx
-- Validation Samples B
-
-Classification 22
-- Bands      Indeces
-- Training   Samples A
+- Training   Samples B
 - Labels     3 class
 - Brick      Approx
-- Validation Samples B
+- Validation NA
 
-Classification 23
-- Bands      Indices
-- Training   Samples A
-- Labels     5 class
-- Brick      Raw
-- Validation Samples B
+#Classification 53
+#- Bands      Indices
+#- Training   Samples B
+#- Labels     5 class
+#- Brick      Raw
+#- Validation NA
 
-Classification 24
-- Bands      Indices
-- Training   Samples A
-- Labels     3 class
-- Brick      Raw
-- Validation Samples B
+#Classification 54
+#- Bands      Indices
+#- Training   Samples B
+#- Labels     3 class
+#- Brick      Raw
+#- Validation NA
 
 #-----------------------
 
-Classification 31
-- Bands      All bands
-- Training   Samples C
-- Labels     5 class
-- Brick      Approx
-- Validation NA
+#Classification 61 
+#- Bands      All bands
+#- Training   Samples A
+#- Labels     5 class
+#- Brick      Approx
+#- Validation NA
 
-Classification 32
-- Bands      All bands
-- Training   Samples C
-- Labels     3 class
-- Brick      Approx
-- Validation NA
+#Classification 62
+#- Bands      All bands
+#- Training   Samples A
+#- Labels     3 class
+#- Brick      Approx
+#- Validation NA
 
-Classification 33
-- Bands      All bands
-- Training   Samples c
-- Labels     5 class
-- Brick      Raw
-- Validation NA
+#Classification 63
+#- Bands      All bands
+#- Training   Samples A
+#- Labels     5 class
+#- Brick      Raw
+#- Validation NA
 
-Classification 34
-- Bands      All bands
-- Training   Samples C
-- Labels     3 class
-- Brick      Raw
-- Validation NA
+#Classification 64
+#- Bands      All bands
+#- Training   Samples A
+#- Labels     3 class
+#- Brick      Raw
+#- Validation NA
 
-#-----------------------
+#------------------------------------------------------------------------------
 
-Classification 41
-- Bands      Indices
-- Training   Samples C
-- Labels     5 class
-- Brick      Approx
-- Validation NA
+samples A
+ - 3 label      > 5 labels
+  - interpolated > raw
 
-Classification 42
-- Bands      Indices
-- Training   Samples C
-- Labels     3 class
-- Brick      Approx
-- Validation NA
+  samples B
+   - 3 label == 5 label (deforestation and forest area don't change)
 
-Classification 43
-- Bands      Indices
-- Training   Samples c
-- Labels     5 class
-- Brick      Raw
-- Validation NA
+   samples C doesn't improve the classification
 
-Classification 44
-- Bands      Indices
-- Training   Samples C
-- Labels     3 class
-- Brick      Raw
-- Validation NA
+   samples A interpolated
+   samples B doesn't increase or reduces pasture area
+   samples C is bad
+
+
+
+
+   do
+   all-bands using samples-A
+
+   ----------
+   Conclusion
+   ----------
+   Samples B  3 labels
+   - The best is all_bands, samples B, cube approx, 3 labels
+   - The best is   indices, samples B, cube approx, 3 labels
 

@@ -1,0 +1,78 @@
+test <- raw_vegind_tb %>%
+    dplyr::slice(1:3)
+
+test[["vi_tb"]] <- parallel::mclapply(test$raw_vrt_file,
+                                      helper_vi, mc.cores = 8)
+
+
+# 3000 3000
+gdallocationinfo  evi2_18faf43219e75.tif          6000 3000 
+gdallocationinfo  gemi_18faf556cffe6.tif          6000 3000
+gdallocationinfo  mtvi_18faf23365f8c.tif          6000 3000
+gdallocationinfo  ndvi_18faf7d2eb413.tif          6000 3000
+gdallocationinfo  ndwi_18faf2d4f8029.tif          6000 3000
+gdallocationinfo  osavi_18faf6ac5cc76.tif         6000 3000
+gdallocationinfo  rdvi_18faf65b26d01.tif          6000 3000
+gdallocationinfo  savi_18faf5fd4c60f.tif          6000 3000
+gdallocationinfo  sentinel_b2348_146e91fc15fd.vrt 6000 3000
+
+
+
+
+alber@esensing-006:/disks/d3/tmp/test$ gdallocationinfo  evi2_18faf43219e75.tif 3000 3000
+Value: 3381
+alber@esensing-006:/disks/d3/tmp/test$ gdallocationinfo  gemi_18faf556cffe6.tif 3000 3000
+Value: -5593
+alber@esensing-006:/disks/d3/tmp/test$ gdallocationinfo  mtvi_18faf23365f8c.tif 3000 3000
+Value: 3567
+alber@esensing-006:/disks/d3/tmp/test$ gdallocationinfo  ndvi_18faf7d2eb413.tif 3000 3000
+Value: 8512
+alber@esensing-006:/disks/d3/tmp/test$ gdallocationinfo  ndwi_18faf2d4f8029.tif 3000 3000
+Value: 23444
+alber@esensing-006:/disks/d3/tmp/test$ gdallocationinfo  osavi_18faf6ac5cc76.tif 3000 3000
+Value: 6248
+alber@esensing-006:/disks/d3/tmp/test$ gdallocationinfo  rdvi_18faf65b26d01.tif 3000 3000
+Value: 1
+alber@esensing-006:/disks/d3/tmp/test$ gdallocationinfo  savi_18faf5fd4c60f.tif 3000 3000
+Value: 4762
+alber@esensing-006:/disks/d3/tmp/test$ gdallocationinfo  sentinel_b2348_146e91fc15fd.vrt 3000 3000
+<LocationInfo><File>/home/alber/Documents/data/experiments/prodes_reproduction/papers/deforestation/data/raster/sentinel_L2A/S2A_MSIL2A_20180901T143741_N9999_R096_T20LKP_20200401T234048.SAFE/GRANULE/L2A_T20LKP_A016681_20180901T144030/IMG_DATA/R10m/T20LKP_20180901T143741_B02_10m.jp2</File></LocationInfo>
+Value: 226
+<LocationInfo><File>/home/alber/Documents/data/experiments/prodes_reproduction/papers/deforestation/data/raster/sentinel_L2A/S2A_MSIL2A_20180901T143741_N9999_R096_T20LKP_20200401T234048.SAFE/GRANULE/L2A_T20LKP_A016681_20180901T144030/IMG_DATA/R10m/T20LKP_20180901T143741_B03_10m.jp2</File></LocationInfo>
+Value: 325
+<LocationInfo><File>/home/alber/Documents/data/experiments/prodes_reproduction/papers/deforestation/data/raster/sentinel_L2A/S2A_MSIL2A_20180901T143741_N9999_R096_T20LKP_20200401T234048.SAFE/GRANULE/L2A_T20LKP_A016681_20180901T144030/IMG_DATA/R10m/T20LKP_20180901T143741_B04_10m.jp2</File></LocationInfo>
+Value: 205
+<LocationInfo><File>/home/alber/Documents/data/experiments/prodes_reproduction/papers/deforestation/data/raster/sentinel_L2A/S2A_MSIL2A_20180901T143741_N9999_R096_T20LKP_20200401T234048.SAFE/GRANULE/L2A_T20LKP_A016681_20180901T144030/IMG_DATA/R10m/T20LKP_20180901T143741_B08_10m.jp2</File></LocationInfo>
+Value: 2552
+
+
+
+
+
+
+alber@esensing-006:/disks/d3/tmp/test$ gdallocationinfo  evi2_18faf43219e75.tif          6000 3000
+Value: 2196
+alber@esensing-006:/disks/d3/tmp/test$ gdallocationinfo  gemi_18faf556cffe6.tif          6000 3000
+Value: 7964
+alber@esensing-006:/disks/d3/tmp/test$ gdallocationinfo  mtvi_18faf23365f8c.tif          6000 3000
+Value: 4641
+alber@esensing-006:/disks/d3/tmp/test$ gdallocationinfo  ndvi_18faf7d2eb413.tif          6000 3000
+Value: 8494
+alber@esensing-006:/disks/d3/tmp/test$ gdallocationinfo  ndwi_18faf2d4f8029.tif          6000 3000
+Value: -28185
+alber@esensing-006:/disks/d3/tmp/test$ gdallocationinfo  osavi_18faf6ac5cc76.tif         6000 3000
+Value: 6757
+alber@esensing-006:/disks/d3/tmp/test$ gdallocationinfo  rdvi_18faf65b26d01.tif          6000 3000
+Value: 6
+alber@esensing-006:/disks/d3/tmp/test$ gdallocationinfo  savi_18faf5fd4c60f.tif          6000 3000
+Value: 5450
+alber@esensing-006:/disks/d3/tmp/test$ gdallocationinfo  sentinel_b2348_146e91fc15fd.vrt 6000 3000
+<LocationInfo><File>/home/alber/Documents/data/experiments/prodes_reproduction/papers/deforestation/data/raster/sentinel_L2A/S2A_MSIL2A_20180901T143741_N9999_R096_T20LKP_20200401T234048.SAFE/GRANULE/L2A_T20LKP_A016681_20180901T144030/IMG_DATA/R10m/T20LKP_20180901T143741_B02_10m.jp2</File></LocationInfo>
+Value: 268
+<LocationInfo><File>/home/alber/Documents/data/experiments/prodes_reproduction/papers/deforestation/data/raster/sentinel_L2A/S2A_MSIL2A_20180901T143741_N9999_R096_T20LKP_20200401T234048.SAFE/GRANULE/L2A_T20LKP_A016681_20180901T144030/IMG_DATA/R10m/T20LKP_20180901T143741_B03_10m.jp2</File></LocationInfo>
+Value: 499
+<LocationInfo><File>/home/alber/Documents/data/experiments/prodes_reproduction/papers/deforestation/data/raster/sentinel_L2A/S2A_MSIL2A_20180901T143741_N9999_R096_T20LKP_20200401T234048.SAFE/GRANULE/L2A_T20LKP_A016681_20180901T144030/IMG_DATA/R10m/T20LKP_20180901T143741_B04_10m.jp2</File></LocationInfo>
+Value: 263
+<LocationInfo><File>/home/alber/Documents/data/experiments/prodes_reproduction/papers/deforestation/data/raster/sentinel_L2A/S2A_MSIL2A_20180901T143741_N9999_R096_T20LKP_20200401T234048.SAFE/GRANULE/L2A_T20LKP_A016681_20180901T144030/IMG_DATA/R10m/T20LKP_20180901T143741_B08_10m.jp2</File></LocationInfo>
+Value: 3230
+

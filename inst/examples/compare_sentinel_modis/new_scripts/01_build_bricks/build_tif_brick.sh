@@ -2,7 +2,7 @@
 
 shopt -s nullglob
 
-out_dir=/disks/d3/brick_sentinel2_raw
+out_dir=/disks/d3/brick_sentinel2
 
 band="$1"
 if [ "$band" == "" ] ; then
