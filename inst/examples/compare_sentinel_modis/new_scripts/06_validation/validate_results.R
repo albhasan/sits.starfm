@@ -101,7 +101,6 @@ results_tb %>%
          }
     })
 
-% TODO: Get the F1 score from the confusion matrix.
 results_tb %>%
     dplyr::mutate(def_pa = purrr::map_dbl(con_mat, get_up_accuracy, label = "Deforestation", acc_type = "pa"),
                   def_ua = purrr::map_dbl(con_mat, get_up_accuracy, label = "Deforestation", acc_type = "ua"),

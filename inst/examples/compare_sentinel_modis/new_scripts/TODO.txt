@@ -16,7 +16,10 @@ DONE - Sample 84 points from Forest and NonForest for each classification from t
 DONE - join the extra deforestation points to the samples
 DONE - compute confusion matrices.
 DONE - Compute an histogram of area distribution by patch of deforetation for both classifications: Bands & Indeces.
-- Build QGIS layout of 3 columns (Sentinel images, Bands, Indeces) comparing patches of the classification (3 or 4).
+DONE - Build QGIS layout of 3 columns (Sentinel images, Bands, Indeces) comparing patches of the classification (3 or 4).
+
+
+
 
 Claudio:
 - Fazer desmatamento de floresta primaria.
